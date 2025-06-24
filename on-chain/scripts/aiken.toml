@@ -1,9 +1,9 @@
 name = "on-chain/scripts"
 version = "0.0.0"
-compiler = "v1.0.20"
+compiler = "v1.1.17"
 plutus = "v3"
 license = "Apache-2.0"
-description = "Aiken contracts for project 'on-chain/oscripts'"
+description = "Aiken contracts for project 'on-chain/scripts'"
 
 [repository]
 user = "on-chain"
@@ -12,7 +12,7 @@ platform = "github"
 
 [[dependencies]]
 name = "aiken-lang/stdlib"
-version = "v1.7.0"
+version = "v2.2.0"
 source = "github"
 
 [config]
