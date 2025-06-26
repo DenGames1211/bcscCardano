@@ -8,7 +8,12 @@ use aiken/crypto.{Blake2b_224, Hash}
 use cardano/script_context.{ScriptContext, Spending}
 use cardano/transaction.{Transaction, Input, Output}
 use cardano/address.{VerificationKey, Address}
-use cardano/assets
+use cardano/assets.{lovelace_of}
+
+// use aiken/cbor // diagnostic
+
+// /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types definition
@@ -49,13 +54,25 @@ pub fn get_own_input(ctx: ScriptContext) -> Input {
 
 
 /// ***
+/// @funct must_be_signed_by
+/// @brief Checks if the provided Transaction is signed by the provided VerificationKeyHash
+/// @param transaction
+/// @param vk
+/// @return Bool - True if the transaction contains vk in the signatories, False otherwise 
+/// *** 
+pub fn must_be_signed_by(transaction: Transaction, vk: VerificationKeyHash) {
+    list.has(transaction.extra_signatories, vk)
+} 
+
+
+/// ***
 /// @funct get_ada_from_outputs
 /// @brief - Sums up all the lovelace values in the outputs list 
 /// @param outputs
 /// @return balance - The outputs' balance in lovelace
 /// *** 
 pub fn get_ada_from_outputs(outputs: List<Output>) -> Int {
-    list.reduce(outputs, 0, fn(acc, output) { acc + assets.lovelace_of(output.value) })
+    list.reduce(outputs, 0, fn(acc, output) { acc + lovelace_of(output.value) })
 }
 
 
@@ -66,43 +83,22 @@ pub fn get_ada_from_outputs(outputs: List<Output>) -> Int {
 /// @return balance - The inputs' balance in lovelace
 /// *** 
 pub fn get_ada_from_inputs(inputs: List<Input>) -> Int {
-    list.reduce(inputs, 0, fn(acc, input) { acc + assets.lovelace_of(input.output.value) })
+    list.reduce(inputs, 0, fn(acc, input) { acc + lovelace_of(input.output.value) })
 }
+
 
 /// ***
 /// @funct get_outputs_by_vkh
 /// @brief - Keeps in the outputs list only the ones having vkh as their address
 /// @param outputs
 /// @param vkh
-/// @return outputs - The Output list containing UTXOs owned by vkh  
+/// @return outputs - The Output list containing UTXOs own by vkh  
 /// ***
 pub fn get_outputs_by_vkh(outputs: List<Output>, vkc: VerificationKeyHash) -> List<Output> {
     list.filter(
         outputs,
         fn(output) {
             when output.address.payment_credential is {
-                // Match on the correct constructor
-                VerificationKey(addr_vkh) ->
-                    addr_vkh == vkc
-                _ ->
-                    False
-            }
-        }
-    )
-}
-
-/// ***
-/// @funct get_inputs_by_vkh
-/// @brief - Keeps in the inputs list only the ones having vkh as their address
-/// @param inputs
-/// @param vkh
-/// @return inputs - The Input list containing UTXOs owned by vkh  
-/// ***
-pub fn get_inputs_by_vkh(inputs: List<Input>, vkc: VerificationKeyHash) -> List<Input> {
-    list.filter(
-        inputs,
-        fn(input) {
-            when input.output.address.payment_credential is {
                 // Match on the correct constructor
                 VerificationKey(addr_vkh) ->
                     addr_vkh == vkc
@@ -130,16 +126,24 @@ pub fn get_outputs_by_address(outputs: List<Output>, addr: Address) -> List<Outp
 
 
 /// ***
-/// @funct get_inputs_by_address
-/// @brief - Keeps in the inputs list only the ones having addr as their address
+/// @funct get_inputs_by_vkh
+/// @brief - Keeps in the inputs list only the ones having vkh as their address
 /// @param inputs
-/// @param addr
-/// @return inputs - The Input list containing inputs own by addr
-/// *** 
-pub fn get_inputs_by_address(inputs: List<Input>, addr: Address) -> List<Input> {
+/// @param vkh
+/// @return inputs - The Input list containing UTXOs own by vkh  
+/// ***
+pub fn get_inputs_by_vkh(inputs: List<Input>, vkc: VerificationKeyHash) -> List<Input> {
     list.filter(
         inputs,
-        fn (input) { input.output.address == addr }
+        fn(input) {
+            when input.output.address.payment_credential is {
+                // Match on the correct constructor
+                VerificationKey(addr_vkh) ->
+                    addr_vkh == vkc
+                _ ->
+                    False
+            }
+        }
     )
 }
 

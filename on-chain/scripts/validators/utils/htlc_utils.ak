@@ -11,6 +11,9 @@ use cardano/address.{VerificationKey, Address}
 use cardano/assets
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+// /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Types definition
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -69,12 +72,13 @@ pub fn get_ada_from_inputs(inputs: List<Input>) -> Int {
     list.reduce(inputs, 0, fn(acc, input) { acc + assets.lovelace_of(input.output.value) })
 }
 
+
 /// ***
 /// @funct get_outputs_by_vkh
 /// @brief - Keeps in the outputs list only the ones having vkh as their address
 /// @param outputs
 /// @param vkh
-/// @return outputs - The Output list containing UTXOs owned by vkh  
+/// @return outputs - The Output list containing UTXOs own by vkh  
 /// ***
 pub fn get_outputs_by_vkh(outputs: List<Output>, vkc: VerificationKeyHash) -> List<Output> {
     list.filter(
@@ -91,12 +95,13 @@ pub fn get_outputs_by_vkh(outputs: List<Output>, vkc: VerificationKeyHash) -> Li
     )
 }
 
+
 /// ***
 /// @funct get_inputs_by_vkh
 /// @brief - Keeps in the inputs list only the ones having vkh as their address
 /// @param inputs
 /// @param vkh
-/// @return inputs - The Input list containing UTXOs owned by vkh  
+/// @return inputs - The Input list containing UTXOs own by vkh  
 /// ***
 pub fn get_inputs_by_vkh(inputs: List<Input>, vkc: VerificationKeyHash) -> List<Input> {
     list.filter(
@@ -110,36 +115,6 @@ pub fn get_inputs_by_vkh(inputs: List<Input>, vkc: VerificationKeyHash) -> List<
                     False
             }
         }
-    )
-}
-
-
-/// ***
-/// @funct get_outputs_by_address
-/// @brief - Keeps in the outputs list only the ones having addr as their address
-/// @param outputs
-/// @param addr
-/// @return outputs - The Output list containing outputs own by addr
-/// *** 
-pub fn get_outputs_by_address(outputs: List<Output>, addr: Address) -> List<Output> {
-    list.filter(
-        outputs,
-        fn(output) { output.address == addr }
-    )
-}
-
-
-/// ***
-/// @funct get_inputs_by_address
-/// @brief - Keeps in the inputs list only the ones having addr as their address
-/// @param inputs
-/// @param addr
-/// @return inputs - The Input list containing inputs own by addr
-/// *** 
-pub fn get_inputs_by_address(inputs: List<Input>, addr: Address) -> List<Input> {
-    list.filter(
-        inputs,
-        fn (input) { input.output.address == addr }
     )
 }
 
