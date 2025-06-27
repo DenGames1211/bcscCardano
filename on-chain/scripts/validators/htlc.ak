@@ -99,10 +99,6 @@ validator htlc {
             }
         }     
     }
-    // reject any other script-purpose
-    else(_ctx: ScriptContext) {
-        False
-    }
 }
 
 // ////////////////////////////////////////////////////////////////////////////////

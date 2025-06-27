@@ -1,9 +1,17 @@
 # bcscCardano
 
+#### dApp Web Bet & Auction
+Per poter deployare una transazione sulla testnet, come prima cosa generiamo i file plutus associati ai singoli validator:
+aiken blueprint convert > bet.plutus.json
+aiken blueprint convert > auction.plutus.json
+
+
+
+
 ### TraceTool
 
 First things first, starting from a .aiken validator we need to generate its associated .plutus file, so that fees may be estimated:
-aiken blueprint convert > bet.plutus
+aiken blueprint convert > bet.plutus.json
 
 
 Then, what the trace-tool does is generate a payment verification and signing key:
