@@ -10,9 +10,15 @@ export default function ConnectWallet() {
     (async () => {
       try {
         const lucid = await initLucid();
-        if (typeof window !== 'undefined' && window.cardano?.nami) {
-          const api = await window.cardano.nami.enable();
+        if (typeof window !== 'undefined' && window.cardano) {
+          // Trova il wallet Lace o Nami compatibile
+          const wallet = window.cardano.lace || window.cardano.nami || Object.values(window.cardano).find((w: any) => w.name === 'Nami' || w.name === 'Lace');
+          
+          if (!wallet) throw new Error('Wallet compatibile non trovato');
+
+          const api = await wallet.enable();
           lucid.selectWallet(api);
+          
           const addr = await lucid.wallet.address();
           setAddress(addr);
           setConnected(true);
@@ -26,7 +32,12 @@ export default function ConnectWallet() {
   const handleConnect = async () => {
     try {
       const lucid = await initLucid();
-      const api = await window.cardano.nami.enable();
+      const wallet = window.cardano.lace || window.cardano.nami || Object.values(window.cardano).find((w: any) => w.name === 'Nami' || w.name === 'Lace');
+      
+      if (!wallet) throw new Error('Wallet compatibile non trovato');
+
+      const api = await wallet.enable();
+      
       lucid.selectWallet(api);
       const addr = await lucid.wallet.address();
       setAddress(addr);

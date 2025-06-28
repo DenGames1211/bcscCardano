@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@spacebudz/lucid": "npm:@jsr/spacebudz__lucid@^0.20.11"
+  }
+}
