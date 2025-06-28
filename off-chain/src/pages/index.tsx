@@ -2,7 +2,7 @@
 'use client';
 
 import ConnectWallet from '@/components/ConnectWallet';
-import DeployBetForm from '@/components/DeployBetForm';
+import BetInteraction from '@/components/BetInteraction';
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
           </section>
 
           <section>
-            <DeployBetForm />
+            <BetInteraction />
           </section>
         </div>
       </div>
