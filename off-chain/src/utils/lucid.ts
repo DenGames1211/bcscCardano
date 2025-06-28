@@ -28,23 +28,37 @@ function getHashHexFromAddress(addr: string): string {
 }
 
 export function encodeDatum(d: BetDatum): string {
-  // 1) Estrai gli hash in hex (56 char) da ogni Bech32
-  const oracleHex = getHashHexFromAddress(d.oracle);
-  const p1Hex = getHashHexFromAddress(d.player_1);
-  const p2Hex = getHashHexFromAddress(d.player_2);
+  // 1. Normalizza tutti i numeri a bigint (gestendo sia stringhe che number)
+  const normalizeBigInt = (value: string | number | bigint): bigint => {
+    if (typeof value === 'bigint') return value;
+    if (typeof value === 'number') return BigInt(Math.floor(value));
+    return BigInt(value); // Fallback per stringhe
+  };
 
-  // 2) Costruisci l'oggetto conforme al JSON-schema
-   const shaped = {
-    index: 0, // Matches the Datum constructor in your schema
+  // 2. Costruzione del datum con valori normalizzati
+  const shaped = {
+    index: 0,
     fields: [
-      oracleHex,    // aiken/crypto/VerificationKeyHash
-      d.wager,      // utils/bet_utils/Lovelace
-      p1Hex,        // aiken/crypto/VerificationKeyHash
-      p2Hex,        // aiken/crypto/VerificationKeyHash
+      getHashHexFromAddress(d.oracle),
+      normalizeBigInt(d.wager), // Garantito bigint
+      getHashHexFromAddress(d.player_1),
+      getHashHexFromAddress(d.player_2),
+      normalizeBigInt(d.deadline), // Garantito bigint
+      {
+        index: d.isJoined ? 1 : 0,
+        fields: []
+      }
     ]
   } as any;
 
-  // 3) Serializza col JSON-schema Aiken
+  // 3. Debug: verifica i tipi effettivi
+  console.log("Verifica finale tipi:", {
+    wager: typeof shaped.fields[1],
+    deadline: typeof shaped.fields[4],
+    isJoinedType: typeof shaped.fields[5].index
+  });
+
+  // 4. Serializzazione finale
   return Data.to(shaped, BetBetSpend.datum);
 }
 
@@ -150,7 +164,7 @@ export async function timeoutBet(d: BetDatum) {
  */
 export async function deployBetContract(d: BetDatum, initialAda = 2_000_000n) {
   const lucid = await initLucid();
-  console.log(d);
+  console.log("received datum: ", d);
 
   const tx = await lucid
     .newTx()

@@ -61,7 +61,7 @@ class TraceToolApp(ctk.CTk):
             self.csv_path.set(path)
 
     def select_raw_file(self):
-        path = filedialog.askopenfilename(filetypes=[("Raw TX files", "*.plutus"), ("All files", "*.*")])
+        path = filedialog.askopenfilename(filetypes=[("Raw TX file", "*.json"), ("All files", "*.*")])
         if path:
             self.script_path.set(path)
 
@@ -84,10 +84,10 @@ class TraceToolApp(ctk.CTk):
             # Run the estimator pipeline with raw path
             estimator.main(input_path, output_path, script_path)
 
-            self.status_label.configure(text=f"✅ Output written to:\n{output_path}")
+            self.status_label.configure(text=f"Output written to:\n{output_path}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process file:\n{e}")
-            self.status_label.configure(text="❌ Failed.")
+            self.status_label.configure(text="Failed.")
 
 if __name__ == "__main__":
     app = TraceToolApp()

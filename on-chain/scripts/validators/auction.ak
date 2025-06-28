@@ -10,7 +10,7 @@
 
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
-use aiken/interval.{Finite, Interval, IntervalBound, PositiveInfinity}
+use aiken/interval.{Finite, Interval, IntervalBound}
 //use aiken/transaction
 use cardano/address.{Address, VerificationKey}
 use cardano/assets.{from_lovelace, lovelace_of}
@@ -18,7 +18,7 @@ use cardano/script_context.{ScriptContext, Spending}
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
 }
-//use cardano/transaction/value
+// use cardano/transaction/value
 // use aiken/cbor // diagnostic
 
 use utils/auction_utils.{
@@ -437,7 +437,7 @@ test auction_start() {
 
   // 7) Contract output UTXO (auction just started)
   let started_datum: Datum =
-    Datum { ..initial_datum, status: STARTED, bidder: seller, amount: 0 }
+    Datum { ..initial_datum, status: STARTED, bidder: seller, amount: new_bid }
 
   let contract_output: Output =
     Output {
@@ -447,12 +447,28 @@ test auction_start() {
       reference_script: None,
     }
 
+  // 7b) Refund/change back to seller
+  let change_key: VerificationKeyHash = #"02"
+  let change_address: Address =
+    Address {
+      payment_credential: VerificationKey(change_key),
+      stake_credential: None,
+    }
+
+  let seller_output: Output =
+    Output {
+      address: change_address,
+      value: from_lovelace(0),
+      datum: NoDatum,
+      reference_script: None,
+    }
+
   // 8) Build the transaction
   let tx: Transaction =
     Transaction {
       ..transaction.placeholder,
       inputs: [contract_input],
-      outputs: [contract_output],
+      outputs: [contract_output, seller_output],
       fee: 0,
       extra_signatories: [seller],
       validity_range: validity_range,

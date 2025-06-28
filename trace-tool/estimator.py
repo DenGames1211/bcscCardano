@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 import subprocess
+import os
 
 PROTOCOL_PARAMS = "./protocol.json"
 
@@ -22,7 +23,6 @@ def read_trace(csv_path):
     return traces
 
 def build_raw_tx(trace, script_file, raw_file):
-    print(script_file)
     command = [
         "cardano-cli", "conway", "transaction", "build-raw",
         "--fee", "0",
@@ -50,16 +50,12 @@ def calculate_fee_and_size(tx_raw_file, trace):
         "--protocol-params-file", PROTOCOL_PARAMS,
         "--mainnet"
     ], capture_output=True, text=True)
+    print(result_fee)
 
     fee = int(result_fee.stdout.split()[0])
+    size = os.stat(tx_raw_file).st_size
 
-    result_size = subprocess.run([
-        "cardano-cli", "transaction", "view",
-        "--tx-body-file", tx_raw_file
-    ], capture_output=True, text=True)
-
-    tx_info = json.loads(result_size.stdout)
-    size = tx_info["txSize"]
+    print(fee, size)
 
     return fee, size
 
@@ -72,9 +68,12 @@ def main(input_csv, output_csv, script_path):
     traces = read_trace(input_csv)
     results = []
 
+    print(traces)
     for trace in traces:
+        print("starting to build")
         build_raw_tx(trace, script_path, raw_path)
-        fee, size = calculate_fee_and_size(script_path, trace)
+        fee, size = calculate_fee_and_size(raw_path, trace)
+        print(fee, size)
 
         results.append({
             'ID': trace['ID'],
