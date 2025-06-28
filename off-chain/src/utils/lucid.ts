@@ -35,8 +35,13 @@ export async function initLucid(): Promise<Lucid> {
   if (!lucidInstance) {
     const provider = new Blockfrost(BLOCKFROST_URL, BLOCKFROST_KEY);
     lucidInstance = await Lucid.new(provider, 'Preview');
-    if (typeof window !== 'undefined' && window.cardano?.nami) {
-      const api = await window.cardano.nami.enable();
+    if (typeof window !== 'undefined' && window.cardano) {
+      // Trova il wallet Lace o Nami compatibile
+      const wallet = window.cardano.lace || window.cardano.nami || Object.values(window.cardano).find((w: any) => w.name === 'Nami' || w.name === 'Lace');
+      
+      if (!wallet) throw new Error('Wallet compatibile non trovato');
+
+      const api = await wallet.enable();
       lucidInstance.selectWallet(api);
     }
   }

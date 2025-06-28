@@ -1,19 +1,13 @@
 // Suggested stdlib version: 2.2.0 (https://github.com/aiken-lang/stdlib/releases/tag/2.2.0)
 
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Contract definition
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Imports
 // /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use cardano/address.{Address, VerificationKey}
-use cardano/assets.{from_lovelace}
+use cardano/assets
 use cardano/script_context.{ScriptContext, Spending}
 use cardano/transaction.{
   InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
@@ -106,13 +100,13 @@ validator simple_transfer {
       }
 
     when redeemer is {
-      Deposit(amount) -> and {
+      Deposit { amount } -> and {
           must_be_signed_by(tx, datum.owner),
           !list.is_empty(owner_outputs),
           get_ada_from_outputs(contract_outputs) == contract_balance + amount,
         }
 
-      Withdraw(amount) -> and {
+      Withdraw { amount } -> and {
           must_be_signed_by(tx, datum.recipient),
           contract_balance - offset >= amount,
           !list.is_empty(recipient_outputs),
@@ -128,6 +122,82 @@ validator simple_transfer {
     False
   }
 }
+
+
 // ////////////////////////////////////////////////////////////////////////////////
 // Test:
 // ////////////////////////////////////////////////////////////////////////////////
+test sp_deposit() {
+  let owner_vkh = #"123456"
+  let recipient_vkh = #"abcdef"
+  let initial_amount = 1_000_000
+  let deposit_amount = 500_000
+  let script_hash = #"01"
+
+  let datum = Datum {
+    owner: owner_vkh,
+    recipient: recipient_vkh,
+    initialization_amount: initial_amount
+  }
+
+  let contract_address = Address {
+    payment_credential: VerificationKey(script_hash),
+    stake_credential: None
+  }
+
+  let contract_output = Output {
+    address: contract_address,
+    value: assets.from_lovelace(initial_amount + deposit_amount),
+    datum: InlineDatum(Some(datum)),
+    reference_script: None
+  }
+
+  let contract_input = Output {
+    address: contract_address,
+    value: assets.from_lovelace(initial_amount),
+    datum: InlineDatum(Some(datum)),
+    reference_script: None
+  }
+
+  let contract_utxo = OutputReference {
+    transaction_id: "abcd",
+    output_index: 0
+  }
+
+  let own_input = Input {
+    output_reference: contract_utxo,
+    output: contract_input
+  }
+
+  let owner_output = Output {
+    address: Address {
+      payment_credential: VerificationKey(owner_vkh),
+      stake_credential: None
+    },
+    value: assets.from_lovelace(1_000_000),
+    datum: NoDatum,
+    reference_script: None
+  }
+
+  let tx = Transaction {
+    ..transaction.placeholder,
+    inputs: [own_input],
+    outputs: [contract_output, owner_output],
+    extra_signatories: [owner_vkh],
+  }
+
+  let datum_data: Data = datum
+  let ctx: ScriptContext =
+    ScriptContext {
+      transaction: tx,
+      redeemer: Deposit { amount: deposit_amount },
+      info: Spending { output: own_input.output_reference, datum: Some(datum_data) }
+  }
+
+  simple_transfer.spend(
+    Some(datum),
+    Deposit { amount: deposit_amount },
+    own_input.output_reference,
+    ctx
+  )
+}
