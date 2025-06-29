@@ -1,14 +1,1 @@
-{
-  "../node_modules/lucid-cardano/esm/src/core/core.js -> ./libs/cardano_message_signing/cardano_message_signing.generated.js": {
-    "id": "../node_modules/lucid-cardano/esm/src/core/core.js -> ./libs/cardano_message_signing/cardano_message_signing.generated.js",
-    "files": [
-      "static/chunks/_pages-dir-browser_node_modules_lucid-cardano_esm_src_core_libs_cardano_message_signing_carda-14b124.js"
-    ]
-  },
-  "../node_modules/lucid-cardano/esm/src/core/core.js -> ./libs/cardano_multiplatform_lib/cardano_multiplatform_lib.generated.js": {
-    "id": "../node_modules/lucid-cardano/esm/src/core/core.js -> ./libs/cardano_multiplatform_lib/cardano_multiplatform_lib.generated.js",
-    "files": [
-      "static/chunks/_pages-dir-browser_node_modules_lucid-cardano_esm_src_core_libs_cardano_multiplatform_lib_car-8893d7.js"
-    ]
-  }
-}
+{}

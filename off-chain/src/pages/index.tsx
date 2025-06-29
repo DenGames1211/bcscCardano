@@ -1,8 +1,9 @@
-// pages/index.tsx
-'use client';
-
-import ConnectWallet from '@/components/ConnectWallet';
-import BetInteraction from '@/components/BetInteraction';
+import { useState } from "react";
+import type { NextPage } from "next";
+import { useWallet } from '@meshsdk/react';
+import { CardanoWallet } from '@meshsdk/react';
+import ConnectWallet from "@/components/ConnectWallet";
+import BetInteraction from "@/components/BetInteraction";
 
 export default function Home() {
   return (

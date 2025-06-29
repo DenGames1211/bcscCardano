@@ -1,64 +1,60 @@
-// src/components/ConnectWallet.tsx
-import React, { useEffect, useState } from 'react';
-import { initLucid } from '@/utils/lucid';
+import React, { useEffect, useState } from "react";
+import { BrowserWallet } from "@meshsdk/core";
 
 export default function ConnectWallet() {
-  const [connected, setConnected] = useState(false);
-  const [address, setAddress] = useState<string | null>(null);
+  const [wallet, setWallet]     = useState<BrowserWallet | null>(null);
+  const [address, setAddress]   = useState<string>("");
+  const [error, setError]       = useState<string | null>(null);
+  const [loading, setLoading]   = useState(true);
+
+  const truncate = (str: string) =>
+    str.length > 10
+      ? `${str.slice(0, 15)}…${str.slice(-5)}`
+      : str;
 
   useEffect(() => {
-    (async () => {
-      try {
-        const lucid = await initLucid();
-        if (typeof window !== 'undefined' && window.cardano) {
-          // Trova il wallet Lace o Nami compatibile
-          const wallet = window.cardano.lace || window.cardano.nami || Object.values(window.cardano).find((w: any) => w.name === 'Nami' || w.name === 'Lace');
-          
-          if (!wallet) throw new Error('Wallet compatibile non trovato');
+    if (typeof window === "undefined") return;
 
-          const api = await wallet.enable();
-          lucid.selectWallet(api);
-          
-          const addr = await lucid.wallet.address();
-          setAddress(addr);
-          setConnected(true);
+    const injected = (window as any).cardano;
+    if (!injected?.lace) {
+      setError("Lace wallet extension not found. Please install/enable it.");
+      setLoading(false);
+      return;
+    }
+
+    // Enable the wallet, then grab addresses
+    BrowserWallet.enable("lace")
+      .then((w) => {
+        setWallet(w);
+        return w.getUsedAddresses();
+      })
+      .then((addrs) => {
+        if (addrs.length === 0) {
+          setError("No used addresses returned by wallet.");
+        } else {
+          setAddress(addrs[0]);
         }
-      } catch {
-        setConnected(false);
-      }
-    })();
+      })
+      .catch((e: any) => {
+        setError(e?.message || "User denied connection or unknown error");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
-  const handleConnect = async () => {
-    try {
-      const lucid = await initLucid();
-      const wallet = window.cardano.lace || window.cardano.nami || Object.values(window.cardano).find((w: any) => w.name === 'Nami' || w.name === 'Lace');
-      
-      if (!wallet) throw new Error('Wallet compatibile non trovato');
+  if (loading) {
+    return <div>⏳ Connecting to Lace…</div>;
+  }
 
-      const api = await wallet.enable();
-      
-      lucid.selectWallet(api);
-      const addr = await lucid.wallet.address();
-      setAddress(addr);
-      setConnected(true);
-    } catch (error) {
-      console.error('Connessione wallet fallita', error);
-    }
-  };
+  if (error) {
+    return <div style={{ color: "red" }}>❌ {error}</div>;
+  }
 
   return (
-    <div className="flex items-center space-x-2">
-      {connected && address ? (
-        <span className="text-sm font-medium">Wallet: {address.slice(0, 6)}...{address.slice(-6)}</span>
-      ) : (
-        <button
-          onClick={handleConnect}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          Connetti Wallet
-        </button>
-      )}
+    <div>
+      ✅ Connected!<br/>
+      Address: <code>{truncate(address)}</code>
     </div>
   );
 }
