@@ -3,7 +3,7 @@ import type { NextPage } from "next";
 import { useWallet } from '@meshsdk/react';
 import { CardanoWallet } from '@meshsdk/react';
 import ConnectWallet from "@/components/ConnectWallet";
-import BetInteraction from "@/components/BetInteraction";
+import BetInteraction from "@/components/BetInteraction_";
 
 export default function Home() {
   return (

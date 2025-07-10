@@ -7,9 +7,11 @@ import {
   MeshTxBuilder,
   MeshWallet,
   serializePlutusScript,
+  PlutusScript,
+  resolvePlutusScriptAddress,
   UTxO,
 } from "@meshsdk/core";
-import { applyParamsToScript } from "@meshsdk/core-csl";
+import { applyParamsToScript, resolveDataHash } from "@meshsdk/core-csl";
 import betBlueprint from "@/scripts/bet.plutus.json";
 import { useWallet } from "@meshsdk/react";
  
@@ -64,6 +66,17 @@ export function getScript() {
   ).address;
  
   return { scriptCbor, scriptAddr };
+}
+
+export function getScript2() {
+  const scriptCbor = applyParamsToScript(betBlueprint.validators[0].compiledCode, []);
+
+  const script: PlutusScript = {
+    code: scriptCbor,
+    version: "V3",
+  };
+  const scriptAddr = resolvePlutusScriptAddress(script, 0);
+  return { script, scriptAddr };
 }
  
 // reusable function to get a transaction builder
@@ -122,4 +135,53 @@ export async function lockAssetsWithDatum<Input>(
   const txHash = await _wallet!.submitTx(signedTx);
 
   return txHash;
+}
+
+export async function getAssetUtxo({
+  scriptAddress,
+  asset,
+  datum,
+}: {
+  scriptAddress: string;
+  asset: string;
+  datum: any;
+}) {
+  const provider = blockchainProvider;
+  const utxos = await provider.fetchAddressUTxOs(
+    scriptAddress,
+    asset,
+  );
+  console.log("UTxOs at script:", utxos);
+  const dataHash = resolveDataHash(datum);
+  //const dataHash = "c34b76230b9670a097bdbfc9e85ea5f7e02dbc0399806594a3c62ec7fd93402a"
+  console.log("Looking for dataHash:", resolveDataHash(datum));
+  //dataHash = "78769eb5e5c09a9f5b6e6558bc1527d79a20d428f32ce78c404d0ddbb3bbcc4f"
+  //console.log("script addr used: ", scriptAddress)
+ 
+
+  let utxo = utxos.find((utxo: any) => {
+    return utxo.output.dataHash == dataHash;
+  });
+
+  return utxo;
+}
+
+
+export async function getUtxoByTxHashWithRetry(txHash: string, retries = 10, delay = 1500): Promise<any> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const result = await blockchainProvider.fetchUTxOs(txHash);
+      if (result && result.length > 0) {
+        return result[0]; // oppure filtrare quello giusto se ce ne sono più
+      }
+    } catch (err: any) {
+      if (err.status === 404) {
+        console.log(`Retrying fetchUTxOByTxHash... [${i + 1}/${retries}]`);
+        await new Promise((res) => setTimeout(res, delay));
+      } else {
+        throw err; // errore diverso da 404
+      }
+    }
+  }
+  throw new Error(`Transaction ${txHash} not found after ${retries} attempts.`);
 }

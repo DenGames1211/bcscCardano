@@ -1,6 +1,11 @@
 // utils/bet.ts
-import { mBool, mConStr0 } from "@meshsdk/core";
+
+
+import { mBool, mConStr0, BlockfrostProvider, MeshWallet } from "@meshsdk/core";
 import type { BetDatum } from "@/utils/types";
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
 /**
  * Build the Bet datum (constructor index 0).
@@ -33,3 +38,4 @@ export function makeBetDatum(
     joinedFlag,
   ]);
 }
+
