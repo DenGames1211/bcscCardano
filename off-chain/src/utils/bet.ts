@@ -1,8 +1,10 @@
 // utils/bet.ts
 
 
-import { mBool, mConStr0, BlockfrostProvider, MeshWallet } from "@meshsdk/core";
+import { mBool, mConStr0, BlockfrostProvider, MeshWallet, Integer } from "@meshsdk/core";
 import type { BetDatum } from "@/utils/types";
+import {Mint} from '@meshsdk/core';
+
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -39,3 +41,6 @@ export function makeBetDatum(
   ]);
 }
 
+export function makeJoinRedeemer(wager: bigint) {
+  return mConStr0([wager]);
+}

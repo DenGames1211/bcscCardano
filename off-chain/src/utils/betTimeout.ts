@@ -13,7 +13,7 @@ import {
   option,
 
 } from '@meshsdk/core';
-import { getScript, getAssetUtxo, getBrowserWallet } from '@/utils/common';
+import { getScript, getAssetUtxo, getUtxoByTxHash, getBrowserWallet } from '@/utils/common';
 import { makeBetDatum } from '@/utils/bet';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -26,6 +26,8 @@ interface BetTimeoutParams {
   oracleAddr: string;
   wager: string;
   deadline: bigint;
+  datum: Data;
+  txHash: string;
 }
 
 export async function betTimeout({
@@ -34,6 +36,8 @@ export async function betTimeout({
   oracleAddr,
   wager,
   deadline,
+  datum,
+  txHash,
 }: BetTimeoutParams): Promise<{ unsignedTx: string | null}> {
   try {
 
@@ -55,6 +59,7 @@ export async function betTimeout({
     };
 
     
+
     const assetUtxo = await getAssetUtxo({
         scriptAddress: scriptAddr,
         asset: "lovelace",
@@ -71,16 +76,29 @@ export async function betTimeout({
         };
     
         const p1wallet = await getBrowserWallet();
-        const tx = new Transaction({initiator: p1wallet, fetcher: provider})
-            .redeemValue({
-                value: assetUtxo,
-                script: plutusScript,
-                datum: datum,
-                redeemer: redeemer,
-            })
-        .setRequiredSigners([player1, player2]);
+        const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
+        const utxo = await getUtxoByTxHash(txHash);
+        const p1utxos = await p1wallet.getUtxos();
 
-        const unsignedTx = await tx.build();
+
+        const unsignedTx = await txBuilder
+        .spendingPlutusScriptV3()
+        .txIn(
+          utxo.input.txHash,
+          utxo.input.outputIndex,
+          utxo.output.amount,
+          utxo.output.address
+        )
+        .txInDatumValue(datum)
+        .txInRedeemerValue(redeemer)
+        .spendingTxInReference(utxo.input.txHash, utxo.input.outputIndex) 
+        .txInScript(scriptCbor)
+        //.changeAddress(addr)
+        .selectUtxosFrom(p1utxos)
+        .requiredSignerHash(p1PKH)
+        .requiredSignerHash(p2PKH)
+        .complete();
+        
 
     return{unsignedTx: unsignedTx};
 

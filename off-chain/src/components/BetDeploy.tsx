@@ -6,6 +6,7 @@ import {
   Asset,
   BlockfrostProvider,
   deserializeAddress,
+  resolveDataHash,
 } from '@meshsdk/core';
 import { getBrowserWallet, getScript, getTxBuilder } from '@/utils/common';
 import { makeBetDatum } from '@/utils/bet';
@@ -40,31 +41,35 @@ export default function BetDeploy() {
       // 2) build the datum
       const datum = makeBetDatum(
         deserializeAddress(oracle).pubKeyHash,
-        lovelace,
+        0n, // start wager
         deserializeAddress(player1).pubKeyHash,
         deserializeAddress(player2).pubKeyHash,
-        deadline,
-        false
+        1n, // dummy deadline
+        false // not yet joined
       );
-
       // 3) prepare assets + scrip
-      const assets: Asset[] = [{ unit: 'lovelace', quantity: wager }];
+      const assets: Asset[] = [{ unit: 'lovelace', quantity: "4000000" }];
       const { scriptAddr } = getScript();
+      const datumHash = resolveDataHash(datum);
 
       // 4) build, sign and submit
       const txBuilder = getTxBuilder()
         .txOut(scriptAddr, assets)
-        .txOutDatumHashValue(datum)
+        //.txOutDatumHashValue(datumHash)
+        .txOutInlineDatumValue(datum)
         .changeAddress(addr)
         .selectUtxosFrom(utxos);
 
       await txBuilder.complete();
 
+
       const signed = await wallet.signTx(txBuilder.txHex);
+      console.log("deploy transaction: ", txBuilder);
       const hash = await wallet.submitTx(signed);
 
 
       setTxHash(hash);
+
     } catch (err: any) {
       console.error(err);
       alert(`Deployment failed: ${err.message}`);

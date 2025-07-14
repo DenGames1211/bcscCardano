@@ -11,9 +11,10 @@ import {
   Transaction,
   PlutusScript,
   BuilderData,
+  Budget,
 } from '@meshsdk/core';
 import { Data } from '@meshsdk/core';
-import { getScript, getAssetUtxo, getUtxoByTxHash, getUtxoByTxHashWithRetry } from '@/utils/common';
+import { getScript, getBrowserWallet, getAssetUtxo, getUtxoByTxHash, getUtxoByTxHashWithRetry } from '@/utils/common';
 import { makeBetDatum } from '@/utils/bet';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -58,12 +59,15 @@ export async function betWin({
     const p2PKH = deserializeAddress(player2).pubKeyHash;
     const oraclePKH = deserializeAddress(oracleAddr).pubKeyHash;
     const winnerAddr = Math.random() < 0.5 ? player1 : player2;
+    console.log("vincitore: ", winnerAddr.toString() === player1? "Player 1" : "Player 2");
     const winnerPKH = deserializeAddress(winnerAddr).pubKeyHash;
     const wagerTotal = (BigInt(wager) * 2n).toString();
     const lovelace = BigInt(wager);
+    console.log("wager: ", wager);
     //const deadline = BigInt(Date.now() + FIVE_MINUTES_MS);
 
-    
+    const p1wallet = await getBrowserWallet();
+    const p1utxos = await p1wallet.getUtxos();
 
     // 1. Get UTXOs at script address
   
@@ -72,7 +76,7 @@ export async function betWin({
     //if (!targetUtxo) throw new Error('No suitable UTxO at script address');
 
     //const datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
-    const assets: Asset[] = [{ unit: "lovelace", quantity: (BigInt(wager) * 2n).toString() }];
+    const assets: Asset[] = [{ unit: "lovelace", quantity: wager }];
     const oracleUtxos = await oracle.getUtxos();
     const [oracleAd] = await oracle.getUsedAddresses();
     const [addr] = await oracle.getUsedAddresses();
@@ -81,8 +85,13 @@ export async function betWin({
     const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
 
     const redeemer = {
-      index: 1,
+      constructor: 1,
       fields: [{ bytes: winnerPKH }],
+    };
+
+    const exUnits: Budget = {
+      mem: 5000000,
+      steps: 7000000,
     };
 
     
@@ -113,7 +122,12 @@ export async function betWin({
   console.log("utxo amount", utxo.output.amount);
   console.log("utxo out addr", utxo.output.address);
   console.log("script: ", scriptCbor);
+  const newdatum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
+  console.log("oracle address: ", oracleAddr);
 
+  const collateralUtxos = (await oracle.getUtxos()).filter(
+    (utxo) => utxo.output.amount.length === 1 && utxo.output.amount[0].unit === "lovelace"
+  );
 
   const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
@@ -125,13 +139,15 @@ export async function betWin({
     utxo.output.amount,
     utxo.output.address
   )
-  .txInDatumValue(datum)
-  .txInRedeemerValue(redeemer)
+  .txInDatumValue(newdatum)
+  .txInRedeemerValue(redeemer, "JSON", exUnits)
+  .spendingTxInReference(utxo.input.txHash, utxo.input.outputIndex) 
   .txInScript(scriptCbor)
   .txOut(winnerAddr, assets) 
-  //.changeAddress(addr)
-  .selectUtxosFrom(oracleUtxos)
-  .requiredSignerHash(oracleAd)
+  .changeAddress(player1)
+  .selectUtxosFrom(p1utxos)
+  .txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
+  .requiredSignerHash(oraclePKH)
   .complete();
 
 
@@ -148,11 +164,12 @@ export async function betWin({
     //const unsignedTx = await tx.build();
 
 
-
+    console.log("oracle key hash in betWin: ", oraclePKH);
     const signedTx = await oracle.signTx(unsignedTx, true);
     const txHash = await oracle.submitTx(signedTx);
 
     const winner = winnerAddr.toString();
+    console.log("vincitore: ", winner === player1? "Player 1" : "Player 2");
     return { winner: winner , txHash: txHash};
   } catch (err) {
     console.error('Error in betWin:', err);
