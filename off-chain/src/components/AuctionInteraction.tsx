@@ -1,40 +1,33 @@
+'use client';
+
 import React, { useState } from 'react';
 import AuctionDeploy from '@/components/AuctionDeploy';
-import BetJoin from '@/components/BetJoin';
+import AuctionStart from '@/components/AuctionStart';
 
-const tabs = [
-  { id: 'deploy', label: 'Deploy' },
-  { id: 'join', label: 'Join' },
-];
+export default function AuctionSellerUX() {
+  const [object, setObject] = useState('');
+  const [deadline, setDeadline] = useState<bigint>(0n);
 
-export default function AuctionInteraction() {
-  const [activeTab, setActiveTab] = useState('deploy');
-
-  
   return (
     <div className="w-full max-w-3xl mx-auto mt-10">
-      {/* Tab Selector */}
-      <div className="flex border-b border-gray-200 mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors duration-200 ${
-              activeTab === tab.id
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      
+      {/* Deploy Section */}
+      <div className="bg-white p-6 rounded-xl shadow-md mb-10">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">1. Deploy Auction</h2>
+        <AuctionDeploy
+          onDeploy={(obj: string, dl: bigint) => {
+            setObject(obj);
+            setDeadline(dl);
+          }}
+        />
       </div>
 
-      {/* Tab Content */}
-      <div>
-        {activeTab === 'deploy' && <AuctionDeploy />}
-        {activeTab === 'join' && <BetJoin />}
+      {/* Start Section */}
+      <div className="bg-white p-6 rounded-xl shadow-md">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">2. Start Auction</h2>
+        <AuctionStart object={object} deadline={deadline} />
       </div>
     </div>
   );
 }
+
