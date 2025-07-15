@@ -1,0 +1,5 @@
+ID,N accounts,N signers,Datum,Redeemer
+htlc_1,2,1,"{committer:alice,receiver:bob,secret_hash:xyz123,timeout:1700030000}","Reveal{secret:secret123}"
+htlc_2,1,1,"{committer:carol,receiver:dave,secret_hash:abc789,timeout:1700035000}","Timeout"
+htlc_3,2,1,"{committer:eve,receiver:frank,secret_hash:def456,timeout:1700040000}","Reveal{secret:secret789}"
+htlc_4,2,1,"{committer:george,receiver:harry,secret_hash:ghi012,timeout:1700045000}","Reveal{secret:secret345}"

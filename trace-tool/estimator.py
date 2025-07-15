@@ -13,8 +13,6 @@ def read_trace(csv_path):
         redeemer = json.loads(row['Redeemer'])
         traces.append({
             'ID': row['ID'],
-            'Program': row['Program'],
-            'Function': row['Function'],
             'N_accounts': row['N accounts'],
             'N_signers': row['N signers'],
             'datum': datum,
