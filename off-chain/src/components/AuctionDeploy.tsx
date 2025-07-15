@@ -14,7 +14,7 @@ const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!)
 export default function AuctionDeploy() {
   const [seller, setSeller] = useState('');
   const [auctionDuration, setAuctionDuration] = useState('');
-  const [startingBid, setStartingBid] = useState<bigint>(2000000n);
+  const [startingBid, setStartingBid] = useState<bigint>(0n);
   const [object, setObject] = useState('');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,8 +50,8 @@ export default function AuctionDeploy() {
         object,
         deadline,
         AuctionStatus.NOT_STARTED,
-        '', // no bidder yet
-        startingBid
+        "", // first bidder is the seller
+        startingBid // initial amount must be 0
       );
 
       //const assets: Asset[] = [{ unit: 'lovelace', quantity: startingBid.toString() }];

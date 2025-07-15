@@ -207,7 +207,6 @@ validator auction {
             deadline: datum.deadline,
             // These ones have to change:
             status: STARTED,
-            //status: NOT_STARTED,
             // new output must change its status to STARTED
             bidder: datum.seller,
             // current bidder must be the seller as well
