@@ -15,7 +15,7 @@ import {
 } from '@meshsdk/core';
 import { Data } from '@meshsdk/core';
 import { getScript, getBrowserWallet, getAssetUtxo, getUtxoByTxHash, getUtxoByTxHashWithRetry } from '@/utils/common';
-import { makeBetDatum } from '@/utils/bet';
+import { makeBetDatum, makeWinRedeemer } from '@/utils/bet';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -84,10 +84,12 @@ export async function betWin({
     const hash  = resolvePaymentKeyHash(oracleAddr);
     const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
 
-    const redeemer = {
-      constructor: 1,
-      fields: [{ bytes: winnerPKH }],
-    };
+    //const redeemer = {
+    //  constructor: 1,
+    //  fields: [{ bytes: winnerPKH }],
+    //};
+
+    const redeemer = makeWinRedeemer(winnerPKH);
 
     const exUnits: Budget = {
       mem: 5000000,
@@ -140,7 +142,7 @@ export async function betWin({
     utxo.output.address
   )
   .txInDatumValue(newdatum)
-  .txInRedeemerValue(redeemer, "JSON", exUnits)
+  .txInRedeemerValue(redeemer)
   .spendingTxInReference(utxo.input.txHash, utxo.input.outputIndex) 
   .txInScript(scriptCbor)
   .txOut(winnerAddr, assets) 

@@ -14,7 +14,7 @@ import {
 
 } from '@meshsdk/core';
 import { getScript, getAssetUtxo, getUtxoByTxHash, getBrowserWallet } from '@/utils/common';
-import { makeBetDatum } from '@/utils/bet';
+import { makeBetDatum, makeTimeoutRedeemer } from '@/utils/bet';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -51,12 +51,7 @@ export async function betTimeout({
 
     const { scriptCbor, scriptAddr } = getScript();
 
-    const redeemer = {
-    data: {
-        alternative: 2,
-        fields: [],
-    },
-    };
+    const redeemer = makeTimeoutRedeemer();
 
     
 

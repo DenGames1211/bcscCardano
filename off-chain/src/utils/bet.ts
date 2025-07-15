@@ -1,7 +1,7 @@
 // utils/bet.ts
 
 
-import { mBool, mConStr0, BlockfrostProvider, MeshWallet, Integer } from "@meshsdk/core";
+import { mBool, mConStr0, BlockfrostProvider, MeshWallet, Integer, mConStr1, mConStr2, VerificationKey } from "@meshsdk/core";
 import type { BetDatum } from "@/utils/types";
 import {Mint} from '@meshsdk/core';
 
@@ -43,4 +43,12 @@ export function makeBetDatum(
 
 export function makeJoinRedeemer(wager: bigint) {
   return mConStr0([wager]);
+}
+
+export function makeWinRedeemer(winner: string) {
+  return mConStr1([winner]);
+}
+
+export function makeTimeoutRedeemer() {
+  return mConStr2([]);
 }
