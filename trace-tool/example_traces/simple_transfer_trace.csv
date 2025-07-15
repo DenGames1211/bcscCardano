@@ -1,5 +1,0 @@
-ID,N accounts,N signers,Datum,Redeemer
-transfer_1,2,1,"{owner:alice,recipient:bob,initialization_amount:1000000}","Deposit{amount:500000}"
-transfer_2,2,1,"{owner:alice,recipient:bob,initialization_amount:1000000}","Withdraw{amount:300000}"
-transfer_3,2,1,"{owner:charlie,recipient:diane,initialization_amount:1500000}","Deposit{amount:700000}"
-transfer_4,2,1,"{owner:charlie,recipient:diane,initialization_amount:1500000}","Withdraw{amount:400000}"

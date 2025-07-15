@@ -1,5 +1,0 @@
-ID,N accounts,N signers,Datum,Redeemer
-bet_1,2,1,"{oracle:abc123,wager:1000000,player_1:playerA,player_2:playerB,deadline:1700000000,is_joined:false}","Join{wager:1000000}"
-bet_2,2,2,"{oracle:abc123,wager:1000000,player_1:playerA,player_2:playerB,deadline:1700000000,is_joined:true}","Win{winner:playerB}"
-bet_3,1,1,"{oracle:abc123,wager:1500000,player_1:playerC,player_2:playerD,deadline:1700005000,is_joined:false}","Timeout"
-bet_4,2,1,"{oracle:def456,wager:2000000,player_1:playerE,player_2:playerF,deadline:1700007000,is_joined:false}","Join{wager:2000000}"

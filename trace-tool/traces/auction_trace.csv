@@ -1,0 +1,5 @@
+ID,N accounts,N signers,Datum,Redeemer
+auction_1,3,1,"{""state"":""NOT_STARTED"",""seller"":""alice"",""best_bid"":0,""best_bidder"":""none"",""deadline"":1700010000}","{""auction-start"":{}}"
+auction_2,4,2,"{""state"":""STARTED"",""seller"":""alice"",""best_bid"":500000,""best_bidder"":""bob"",""deadline"":1700015000}","{""auction-bid"":{""amount"":600000}}"
+auction_3,3,1,"{""state"":""STARTED"",""seller"":""alice"",""best_bid"":700000,""best_bidder"":""charlie"",""deadline"":1700017000}","{""auction-withdraw"":{}}"
+auction_4,2,1,"{""state"":""OUTBID"",""seller"":""alice"",""best_bid"":800000,""best_bidder"":""eve"",""deadline"":1700020000}","{""auction-end"":{}}"

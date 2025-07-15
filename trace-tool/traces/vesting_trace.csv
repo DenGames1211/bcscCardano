@@ -1,0 +1,5 @@
+ID,N accounts,N signers,Datum,Redeemer
+vesting_1,1,1,"{""beneficiary"":""bob"",""start_timestamp"":1700050000,""duration"":31536000,""amount"":10000000}","{""Release"":{""amount"":2500000}}"
+vesting_2,1,1,"{""beneficiary"":""bob"",""start_timestamp"":1700050000,""duration"":31536000,""amount"":10000000}","{""Release"":{""amount"":2500000}}"
+vesting_3,1,1,"{""beneficiary"":""carol"",""start_timestamp"":1700055000,""duration"":15768000,""amount"":5000000}","{""Release"":{""amount"":1000000}}"
+vesting_4,1,1,"{""beneficiary"":""carol"",""start_timestamp"":1700055000,""duration"":15768000,""amount"":5000000}","{""Release"":{""amount"":2000000}}"

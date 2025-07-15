@@ -76,15 +76,7 @@ def main(input_csv, output_csv, script_path):
         results.append({
             'ID': trace['ID'],
             'Size (bytes)': size,
-            'Fees': fee
+            'Fees (lovelace)': fee
         })
 
     pd.DataFrame(results).to_csv(output_csv, index=False)
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 4:
-        print("Usage: python estimator.py input.csv output.csv raw.plutus")
-    else:
-        _, in_csv, out_csv, raw_path = sys.argv
-        main(in_csv, out_csv, raw_path)
