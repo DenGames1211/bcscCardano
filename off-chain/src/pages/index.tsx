@@ -21,7 +21,7 @@ export default function Home() {
           </section>
 
           <section>
-            <AuctionBidderUX />
+            <AuctionSellerUX />
           </section>
         </div>
       </div>

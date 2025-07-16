@@ -9,6 +9,8 @@ import {
   MeshTxBuilder,
   resolveDataHash,
   Budget,
+  serializeData,
+  mConStr,
 } from '@meshsdk/core';
 import {
   getBrowserWallet,
@@ -67,7 +69,8 @@ export default function BetJoin() {
         fields: [{int: 4000000}],
       };
 
-      const redeemer = makeJoinRedeemer(lovelace);
+      const redeemer3 = makeJoinRedeemer(lovelace);
+      const redeemer = mConStr(0, [4000000])
       console.log("REDEEMER: ", JSON.stringify(redeemer, null, 2));
 
 
@@ -107,7 +110,7 @@ export default function BetJoin() {
       .txInInlineDatumPresent()
       //.txInDatumValue(datum)
       //.txInRedeemerValue(redeemer)
-      .txInRedeemerValue(redeemer)
+      .txInRedeemerValue(serializeData(redeemer), "CBOR")
       .txInScript(scriptCbor)
       //.txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
       .txInCollateral(utxos[0].input.txHash, utxos[0].input.outputIndex)

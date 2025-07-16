@@ -123,3 +123,4 @@ export function parseAuctionDatum(datumHex: string) {
     highestBid: BigInt(highestBidInt.to_str()),
   };
 }
+

@@ -6,6 +6,7 @@ import {
   BlockfrostProvider,
   deserializeAddress,
   MeshTxBuilder,
+  serializeData,
 } from '@meshsdk/core';
 import {
   getBrowserWallet,
@@ -17,6 +18,7 @@ import {
   AuctionStatus,
   makeStartRedeemer,
 } from '@/utils/auction';
+import { handleEndAuction } from '@/utils/auctionEnd'; // <-- assicurati che esista
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
@@ -29,10 +31,13 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
   const [startingBid, setStartingBid] = useState<string>('100000000'); // default: 100 ADA
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
+  const [endTxHash, setEndTxHash] = useState('');
+  const [endLoading, setEndLoading] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
+    setTxHash('');
 
     try {
       const sellerWallet = await getBrowserWallet();
@@ -87,10 +92,9 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       const unsignedTx = await txBuilder
         .spendingPlutusScriptV3()
         .txIn(deployUtxos.input.txHash, deployUtxos.input.outputIndex)
-        //.txInDatumValue(deployDatum)
         .txInInlineDatumPresent()
-        .txInRedeemerValue(redeemer)
-         .txInCollateral(sellerUtxos[0].input.txHash, sellerUtxos[0].input.outputIndex)
+        .txInRedeemerValue(serializeData(redeemer), 'CBOR')
+        .txInCollateral(sellerUtxos[0].input.txHash, sellerUtxos[0].input.outputIndex)
         .txInScript(scriptCbor)
         .txOut(scriptAddr, assets)
         .txOutInlineDatumValue(datum)
@@ -111,15 +115,33 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
     }
   }
 
+  async function handleEnd() {
+    try {
+      setEndLoading(true);
+      setEndTxHash('');
+
+      const wallet = await getBrowserWallet();
+      const [address] = await wallet.getUsedAddresses();
+
+      const tx = await handleEndAuction(address, object, deadline);
+      setEndTxHash(tx);
+    } catch (err: any) {
+      console.error(err);
+      alert(`End failed: ${err.message}`);
+    } finally {
+      setEndLoading(false);
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Read-only Display of Object & Deadline */}
+      {/* Display Object & Deadline */}
       <div className="text-sm text-gray-700">
         <p><strong>Object:</strong> {object}</p>
         <p><strong>Deadline:</strong> {deadline.toString()}</p>
       </div>
 
-      {/* Input for Starting Bid */}
+      {/* Starting Bid Input */}
       <input
         type="number"
         placeholder="Initial Bid (lovelace)"
@@ -129,6 +151,7 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         className="border rounded-lg px-3 py-2"
       />
 
+      {/* Start Auction Button */}
       <button
         type="submit"
         disabled={loading}
@@ -137,12 +160,30 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         {loading ? 'Submitting...' : 'Start Auction'}
       </button>
 
-      {/* Tx Hash Output */}
+      {/* End Auction Button */}
+      <button
+        type="button"
+        onClick={handleEnd}
+        disabled={!object || !deadline || endLoading}
+        className="bg-red-600 text-white rounded-xl py-2 font-semibold hover:bg-red-700 transition duration-200 disabled:opacity-50"
+      >
+        {endLoading ? 'Ending...' : 'End Auction'}
+      </button>
+
+      {/* TX Hashes Output */}
       {txHash && (
         <div className="mt-2 text-sm text-green-700 break-words">
-          <strong>Transaction submitted:</strong> {txHash}
+          <strong>Start Tx:</strong> {txHash}
+        </div>
+      )}
+      {endTxHash && (
+        <div className="mt-2 text-sm text-blue-700 break-words">
+          <strong>End Tx:</strong> {endTxHash}
         </div>
       )}
     </form>
   );
 }
+
+
+
