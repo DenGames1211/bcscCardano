@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import AuctionDeploy from '@/components/AuctionDeploy';
 import AuctionStart from '@/components/AuctionStart';
 import AuctionBid from '@/components/AuctionBid';
+import AuctionWithdraw from './AuctionWithdraw';
 
 export function AuctionSellerUX() {
   const [object, setObject] = useState('');
@@ -45,7 +46,7 @@ export default function AuctionBidderUX() {
       {/* Panel 2: Active Bids */}
       <div className="bg-white p-6 rounded-xl shadow-md">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">2. Active Bids</h2>
-        
+        <AuctionWithdraw></AuctionWithdraw>
       </div>
     </div>
   );

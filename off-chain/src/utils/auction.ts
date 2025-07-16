@@ -12,6 +12,7 @@ import {
 } from "@meshsdk/core";
 
 import type { AuctionDatum } from "@/utils/types";
+import { deserializePlutusData } from "@meshsdk/core-csl";
 
 // Constants
 export const TEN_MINUTES_MS = 10 * 60 * 1000;
@@ -95,4 +96,30 @@ export function makeEndRedeemer() {
   return mConStr3([]);
 }
 
+export function parseAuctionDatum(datumHex: string) {
+  const datum = deserializePlutusData(datumHex);
+  const constr = datum.as_constr_plutus_data();
+  if (!constr) throw new Error('Not a constructor datum');
 
+  const fields = constr.data();
+
+  const sellerBytes = fields.get(0)?.as_bytes();
+  const objectBytes = fields.get(1)?.as_bytes();
+  const deadlineInt = fields.get(2)?.as_integer()?.as_int();
+  const statusTag = fields.get(3)?.as_constr_plutus_data()?.alternative().to_str();
+  const highestBidderBytes = fields.get(4)?.as_bytes();
+  const highestBidInt = fields.get(5)?.as_integer()?.as_int();
+
+  if (!sellerBytes || !objectBytes || !highestBidderBytes || !statusTag || !deadlineInt || !highestBidInt) {
+    throw new Error('Invalid datum structure');
+  }
+
+  return {
+    seller: Buffer.from(sellerBytes).toString('hex'),
+    object: Buffer.from(objectBytes).toString('utf8'),
+    deadline: BigInt(deadlineInt.to_str()),
+    status: Number(statusTag),
+    highestBidder: Buffer.from(highestBidderBytes).toString('hex'),
+    highestBid: BigInt(highestBidInt.to_str()),
+  };
+}

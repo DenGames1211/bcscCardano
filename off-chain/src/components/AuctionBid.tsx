@@ -10,6 +10,7 @@ import {
 } from '@meshsdk/core';
 import { deserializePlutusData } from '@meshsdk/core-csl';
 import { getBrowserWallet, getScript } from '@/utils/common';
+import { parseAuctionDatum } from '@/utils/auction'
 import { makeAuctionDatum, AuctionStatus, makeBidRedeemer } from '@/utils/auction';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -21,33 +22,7 @@ interface AuctionInfo {
   utxo: UTxO;
 }
 
-function parseAuctionDatum(datumHex: string) {
-  const datum = deserializePlutusData(datumHex);
-  const constr = datum.as_constr_plutus_data();
-  if (!constr) throw new Error('Not a constructor datum');
 
-  const fields = constr.data();
-
-  const sellerBytes = fields.get(0)?.as_bytes();
-  const objectBytes = fields.get(1)?.as_bytes();
-  const deadlineInt = fields.get(2)?.as_integer()?.as_int();
-  const statusTag = fields.get(3)?.as_constr_plutus_data()?.alternative().to_str();
-  const highestBidderBytes = fields.get(4)?.as_bytes();
-  const highestBidInt = fields.get(5)?.as_integer()?.as_int();
-
-  if (!sellerBytes || !objectBytes || !highestBidderBytes || !statusTag || !deadlineInt || !highestBidInt) {
-    throw new Error('Invalid datum structure');
-  }
-
-  return {
-    seller: Buffer.from(sellerBytes).toString('hex'),
-    object: Buffer.from(objectBytes).toString('utf8'),
-    deadline: BigInt(deadlineInt.to_str()),
-    status: Number(statusTag),
-    highestBidder: Buffer.from(highestBidderBytes).toString('hex'),
-    highestBid: BigInt(highestBidInt.to_str()),
-  };
-}
 
 export default function AuctionBid() {
   const [bid, setBid] = useState('100000000');
@@ -86,7 +61,7 @@ export default function AuctionBid() {
     fetchAuctions();
   }, []);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleBid(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedAuction) return;
     setLoading(true);
@@ -184,7 +159,7 @@ export default function AuctionBid() {
         ))}
       </ul>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleBid} className="space-y-4">
         <label className="block">
           Bid Amount (lovelace):
           <input
