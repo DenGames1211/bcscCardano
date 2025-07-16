@@ -8,6 +8,7 @@ import {
   mConStr3,
   Data,
   BlockfrostProvider,
+  PlutusData,
 } from "@meshsdk/core";
 
 import type { AuctionDatum } from "@/utils/types";
@@ -53,12 +54,12 @@ export function makeAuctionDatum(
   amount: bigint
 ): AuctionDatum {
   return mConStr(0, [
-    seller,        // seller
-    object,        // object
-    deadline,      // deadline (POSIXTime as bigint)
-    BigInt(status),// status as enum
-    bidder,        // bidder
-    amount,        // amount
+    seller,
+    object,
+    deadline,
+    mConStr(status, []), // ✅ FIXED: status is now a constructor!
+    bidder,
+    amount,
   ]);
 }
 

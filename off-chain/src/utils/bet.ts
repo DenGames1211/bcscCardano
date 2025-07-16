@@ -1,7 +1,7 @@
 // utils/bet.ts
 
 
-import { mBool, mConStr0, BlockfrostProvider, MeshWallet, Integer, mConStr1, mConStr2, VerificationKey } from "@meshsdk/core";
+import { mBool, mConStr, mConStr0, BlockfrostProvider, MeshWallet, Integer, mConStr1, mConStr2, VerificationKey } from "@meshsdk/core";
 import type { BetDatum } from "@/utils/types";
 import {Mint} from '@meshsdk/core';
 
@@ -29,8 +29,10 @@ export function makeBetDatum(
 ): BetDatum {
   // Mesh-SDK’s Data.Constr(index, fields) builds a Plutus‐style constructor.
   // Bool False is index 0, True is index 1, with no fields.
-  const joinedFlag = mBool(isJoined);
+  const joinedFlag = mConStr(isJoined ? 1: 0, []);
 
+  
+  
   return mConStr0([
     oracle,
     wager,

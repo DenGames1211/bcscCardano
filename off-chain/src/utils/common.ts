@@ -185,3 +185,14 @@ export async function getUtxoByTxHashWithRetry(txHash: string, retries = 10, del
   }
   throw new Error(`Transaction ${txHash} not found after ${retries} attempts.`);
 }
+
+export function isConstr(data: unknown): data is { constructor: number; fields: any[] } {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'constructor' in data &&
+    'fields' in data &&
+    typeof (data as any).constructor === 'number' &&
+    Array.isArray((data as any).fields)
+  );
+}

@@ -5,6 +5,7 @@ import { CardanoWallet } from '@meshsdk/react';
 import ConnectWallet from "@/components/ConnectWallet";
 import BetInteraction from "@/components/BetInteraction_";
 import AuctionSellerUX from "@/components/AuctionInteraction";
+import AuctionBidderUX from "@/components/AuctionInteraction"; 
 
 export default function Home() {
   return (
@@ -20,7 +21,7 @@ export default function Home() {
           </section>
 
           <section>
-            <AuctionSellerUX />
+            <AuctionBidderUX />
           </section>
         </div>
       </div>
