@@ -9,7 +9,7 @@ import {
   UTxO,
 } from '@meshsdk/core';
 import { deserializePlutusData } from '@meshsdk/core-csl';
-import { getBrowserWallet, getScript } from '@/utils/common';
+import { getBrowserWallet, getAuctionScript } from '@/utils/common';
 import { parseAuctionDatum, AuctionStatus, makeWithdrawRedeemer } from '@/utils/auction';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -47,7 +47,7 @@ export default function AuctionWithdraw() {
     if (!walletAddress) return;
 
     const bidderPubKeyHash = deserializeAddress(walletAddress).pubKeyHash;
-    const { scriptAddr } = getScript();
+    const { scriptAddr } = getAuctionScript();
 
     const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
     const filteredAuctions: AuctionInfo[] = [];
@@ -127,7 +127,7 @@ export default function AuctionWithdraw() {
       const [addr] = await wallet.getUsedAddresses();
       const bidderPubKeyHash = deserializeAddress(addr).pubKeyHash;
 
-      const { scriptAddr, scriptCbor } = getScript();
+      const { scriptAddr, scriptCbor } = getAuctionScript();
 
       const utxo = selectedAuction.utxo;
       const datum = parseAuctionDatum(utxo.output.plutusData!);

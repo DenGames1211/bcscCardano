@@ -46,7 +46,7 @@
     },
     "aiken/crypto/VerificationKeyHash": {
       "title": "VerificationKeyHash",
-      "dataType": "bytes"
+      "dataType": "string"
     },
     "auction/Datum": {
       "title": "Datum",

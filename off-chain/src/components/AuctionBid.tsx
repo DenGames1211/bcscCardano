@@ -9,7 +9,7 @@ import {
   deserializeAddress,
 } from '@meshsdk/core';
 import { deserializePlutusData } from '@meshsdk/core-csl';
-import { getBrowserWallet, getScript } from '@/utils/common';
+import { getBrowserWallet, getAuctionScript } from '@/utils/common';
 import { parseAuctionDatum } from '@/utils/auction'
 import { makeAuctionDatum, AuctionStatus, makeBidRedeemer } from '@/utils/auction';
 
@@ -32,7 +32,7 @@ export default function AuctionBid() {
   const [selectedAuction, setSelectedAuction] = useState<AuctionInfo | null>(null);
 
   const fetchAuctions = async () => {
-    const { scriptAddr } = getScript();
+    const { scriptAddr } = getAuctionScript();
     const utxos = await provider.fetchAddressUTxOs(scriptAddr);
     const startedAuctions: AuctionInfo[] = [];
 
@@ -73,7 +73,7 @@ export default function AuctionBid() {
       const bidderPubKeyHash = deserializeAddress(addr).pubKeyHash;
       const bidBigInt = BigInt(bid);
 
-      const { scriptAddr, scriptCbor } = getScript();
+      const { scriptAddr, scriptCbor } = getAuctionScript();
       const auctionUtxo = selectedAuction.utxo;
       const parsed = parseAuctionDatum(auctionUtxo.output.plutusData!);
 

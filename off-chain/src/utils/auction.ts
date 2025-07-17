@@ -9,10 +9,13 @@ import {
   Data,
   BlockfrostProvider,
   PlutusData,
+  toBytes
 } from "@meshsdk/core";
 
 import type { AuctionDatum } from "@/utils/types";
-import { deserializePlutusData } from "@meshsdk/core-csl";
+import { deserializePlutusData, fromBytes } from "@meshsdk/core-csl";
+import { hexToBytes } from '@noble/hashes/utils';
+
 
 // Constants
 export const TEN_MINUTES_MS = 10 * 60 * 1000;
@@ -47,20 +50,22 @@ export enum AuctionStatus {
  *   - amount: Integer (current bid)
  */
 export function makeAuctionDatum(
-  seller: string,
-  object: string,
-  deadline: bigint,
+  seller: string,      // hex string (es: PubKeyHash)
+  object: string,      // string (PlutusData string)
+  deadline: bigint,    // Plutus Integer
   status: AuctionStatus = AuctionStatus.NOT_STARTED,
-  bidder: string,
-  amount: bigint
+  bidder: string,      // hex string
+  amount: bigint       // Plutus Integer
 ): AuctionDatum {
   return mConStr(0, [
     seller,
-    object,
-    deadline,
-    mConStr(status, []), // ✅ FIXED: status is now a constructor!
+    //fromBytes(hexToBytes(seller)),   // ✅ wrap Uint8Array in Plutus Bytes
+    object,                      // accettato come stringa da Mesh
+    deadline,                    // bigint -> Plutus int
+    mConStr(status, []),         // status enum to Plutus constructor
     bidder,
-    amount,
+    //fromBytes(hexToBytes(seller)),  
+    amount                       // bigint
   ]);
 }
 

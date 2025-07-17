@@ -6,7 +6,7 @@ import {
   resolvePlutusScriptAddress,
 } from '@meshsdk/core';
 
-import { getBrowserWallet, getScript, getTxBuilder } from '@/utils/common';
+import { getBrowserWallet, getAuctionScript, getTxBuilder } from '@/utils/common';
 import { makeAuctionDatum, AuctionStatus } from '@/utils/auction';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -40,7 +40,7 @@ export default function AuctionDeploy({ onDeploy }: Props) {
       const utxos = await wallet.getUtxos();
 
       // 1. Prepare script and address
-      const {scriptCbor, scriptAddr} = getScript(); 
+      const {scriptCbor, scriptAddr} = getAuctionScript(); 
 
       // 2. Prepare auction deadline (POSIX)
       const now = Date.now();

@@ -13,6 +13,7 @@ import {
 } from "@meshsdk/core";
 import { applyParamsToScript, resolveDataHash } from "@meshsdk/core-csl";
 import betBlueprint from "@/scripts/bet.plutus.json";
+import auctionBlueprint from "@/scripts/auction.plutus.json";
 import { useWallet } from "@meshsdk/react";
  
 const blockchainProvider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -60,13 +61,27 @@ export function getScript() {
     betBlueprint.validators[0].compiledCode,
     []
   );
- 
+
   const scriptAddr = serializePlutusScript(
     { code: scriptCbor, version: "V3" },
   ).address;
  
   return { scriptCbor, scriptAddr };
 }
+
+export function getAuctionScript() {
+  const scriptCbor = applyParamsToScript(
+    auctionBlueprint.validators[0].compiledCode,
+    []
+  );
+
+  const scriptAddr = serializePlutusScript(
+    { code: scriptCbor, version: "V3" },
+  ).address;
+ 
+  return { scriptCbor, scriptAddr };
+}
+
 
 export function getScript2() {
   const scriptCbor = applyParamsToScript(betBlueprint.validators[0].compiledCode, []);

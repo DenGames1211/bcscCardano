@@ -5,12 +5,13 @@ import {
   Asset,
   BlockfrostProvider,
   deserializeAddress,
+  hexToBytes,
   MeshTxBuilder,
   serializeData,
 } from '@meshsdk/core';
 import {
   getBrowserWallet,
-  getScript,
+  getAuctionScript,
   getAssetUtxo,
 } from '@/utils/common';
 import {
@@ -44,7 +45,7 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       const sellerUtxos = await sellerWallet.getUtxos();
       const [addr] = await sellerWallet.getUsedAddresses();
 
-      const { scriptCbor, scriptAddr } = getScript();
+      const { scriptCbor, scriptAddr } = getAuctionScript();
       const sellerPubKeyHash = deserializeAddress(addr).pubKeyHash;
 
       const startingBidBigInt = BigInt(startingBid);
@@ -86,6 +87,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       if (!deployUtxos) {
         throw new Error('No matching UTxO found with the given datum.');
       }
+
+      console.log(deployUtxos);
 
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 

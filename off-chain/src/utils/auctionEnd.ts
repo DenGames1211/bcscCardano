@@ -10,7 +10,7 @@ import {
   makeEndRedeemer,
   parseAuctionDatum,
 } from '@/utils/auction';
-import { getBrowserWallet, getScript } from '@/utils/common';
+import { getBrowserWallet, getAuctionScript } from '@/utils/common';
 import { Address } from '@emurgo/cardano-serialization-lib-asmjs';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
@@ -39,7 +39,7 @@ export async function handleEndAuction(
     throw new Error('Auction deadline not reached yet.');
   }
 
-  const { scriptAddr, scriptCbor } = getScript();
+  const { scriptAddr, scriptCbor } = getAuctionScript();
 
   // Fetch all UTxOs at script address
   const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);

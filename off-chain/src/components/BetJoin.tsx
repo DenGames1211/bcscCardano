@@ -71,7 +71,7 @@ export default function BetJoin() {
 
       const redeemer3 = makeJoinRedeemer(lovelace);
       const redeemer = mConStr(0, [4000000])
-      console.log("REDEEMER: ", JSON.stringify(redeemer, null, 2));
+      //console.log("REDEEMER: ", JSON.stringify(redeemer, null, 2));
 
 
       const exUnits: Budget = {
@@ -118,7 +118,7 @@ export default function BetJoin() {
       .requiredSignerHash(p2PKH)
       .txOut(scriptAddr, assets)
       //.txOut(player1, p1assets)
-      .txOutInlineDatumValue(datum)
+      .txOutInlineDatumValue(serializeData(datum), "CBOR")
       //.txOutDatumHashValue(datum)
       .changeAddress(player1) // o player2, per fee
       //.selectUtxosFrom([...utxos, ...p2Utxos]) // per aggiungere la seconda metà
