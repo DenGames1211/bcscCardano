@@ -53,16 +53,16 @@ export function makeAuctionDatum(
   seller: string,      // hex string (es: PubKeyHash)
   object: string,      // string (PlutusData string)
   deadline: bigint,    // Plutus Integer
-  status: AuctionStatus = AuctionStatus.NOT_STARTED,
+  status: AuctionStatus,
   bidder: string,      // hex string
   amount: bigint       // Plutus Integer
 ): AuctionDatum {
   return mConStr(0, [
     seller,
-    //fromBytes(hexToBytes(seller)),   // ✅ wrap Uint8Array in Plutus Bytes
-    object,                      // accettato come stringa da Mesh
-    deadline,                    // bigint -> Plutus int
-    mConStr(status, []),         // status enum to Plutus constructor
+    //fromBytes(hexToBytes(seller)), 
+    object,                   
+    deadline,                    
+    mConStr(status, []),       
     bidder,
     //fromBytes(hexToBytes(seller)),  
     amount                       // bigint
@@ -74,7 +74,7 @@ export function makeAuctionDatum(
  * Constructor index: 0
  */
 export function makeStartRedeemer() {
-  return mConStr0([]);
+  return mConStr(0, [0]); // Con tag esplicito
 }
 
 /**

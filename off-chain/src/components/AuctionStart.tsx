@@ -19,7 +19,7 @@ import {
   AuctionStatus,
   makeStartRedeemer,
 } from '@/utils/auction';
-import { handleEndAuction } from '@/utils/auctionEnd'; // <-- assicurati che esista
+import { handleEndAuction } from '@/utils/auctionEnd'; 
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
@@ -29,7 +29,7 @@ interface AuctionStartProps {
 }
 
 export default function AuctionStart({ object, deadline }: AuctionStartProps) {
-  const [startingBid, setStartingBid] = useState<string>('100000000'); // default: 100 ADA
+  const [startingBid, setStartingBid] = useState<string>('100000000'); 
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
   const [endTxHash, setEndTxHash] = useState('');
@@ -64,8 +64,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         object,
         deadline,
         AuctionStatus.NOT_STARTED,
-        '',
-        0n
+        sellerPubKeyHash,
+        BigInt(0)
       );
 
       const redeemer = makeStartRedeemer();
@@ -93,9 +93,11 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
       const unsignedTx = await txBuilder
+        .setNetwork("preview")
         .spendingPlutusScriptV3()
         .txIn(deployUtxos.input.txHash, deployUtxos.input.outputIndex)
-        .txInInlineDatumPresent()
+        //.txInInlineDatumPresent()
+        .txInDatumValue(deployDatum)
         .txInRedeemerValue(serializeData(redeemer), 'CBOR')
         .txInCollateral(sellerUtxos[0].input.txHash, sellerUtxos[0].input.outputIndex)
         .txInScript(scriptCbor)

@@ -3,6 +3,7 @@ import {
     Asset,
   BlockfrostProvider,
   deserializeAddress,
+  resolveDataHash,
   resolvePlutusScriptAddress,
 } from '@meshsdk/core';
 
@@ -35,7 +36,7 @@ export default function AuctionDeploy({ onDeploy }: Props) {
       if (!usedAddresses || usedAddresses.length === 0) throw new Error('No wallet address found.');
 
       const userAddress = usedAddresses[0];
-      setSeller(userAddress); // for UI display
+      setSeller(userAddress); 
 
       const utxos = await wallet.getUtxos();
 
@@ -57,20 +58,23 @@ export default function AuctionDeploy({ onDeploy }: Props) {
         object,
         deadline,
         AuctionStatus.NOT_STARTED,
-        "", // first bidder is the seller
+        pubKeyHash, // first bidder is the seller
         startingBid // initial amount must be 0
       );
 
       //const assets: Asset[] = [{ unit: 'lovelace', quantity: startingBid.toString() }];
       const assets: Asset[] = [{ unit: 'lovelace', quantity: "2000000" }];   // minimum ADA required for UTXO with datum
-
+      const datumHash = resolveDataHash(datum);
       // 5. Build and submit the transaction
       const txBuilder = getTxBuilder()
+        .mintPlutusScriptV3()
+        .setNetwork("preview")
         .txOut(
             scriptAddr,
             assets,
         )
-        .txOutInlineDatumValue(datum)
+        //.txOutInlineDatumValue(datum)
+        .txOutDatumHashValue(datum)
         .selectUtxosFrom(utxos)
         .changeAddress(userAddress);
 
