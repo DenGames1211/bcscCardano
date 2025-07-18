@@ -96,9 +96,8 @@
 | ID        | N accounts | N signers | Datum                                                                                      | Redeemer                       |
 | :-------- | ---------: | --------: | :----------------------------------------------------------------------------------------- | :----------------------------- |
 | release-1 |          1 |         1 | {"beneficiary":"bob","start\_timestamp":1700050000,"duration":31536000,"amount":10000000}  | {"Release":{"amount":2500000}} |
-| release-2 |          1 |         1 | {"beneficiary":"bob","start\_timestamp":1700050000,"duration":31536000,"amount":10000000}  | {"Release":{"amount":2500000}} |
-| release-3 |          1 |         1 | {"beneficiary":"carol","start\_timestamp":1700055000,"duration":15768000,"amount":5000000} | {"Release":{"amount":1000000}} |
-| release-4 |          1 |         1 | {"beneficiary":"carol","start\_timestamp":1700055000,"duration":15768000,"amount":5000000} | {"Release":{"amount":2000000}} |
+| release-2 |          1 |         1 | {"beneficiary":"carol","start\_timestamp":1700055000,"duration":15768000,"amount":5000000} | {"Release":{"amount":1000000}} |
+| release-3 |          1 |         1 | {"beneficiary":"carol","start\_timestamp":1700055000,"duration":15768000,"amount":5000000} | {"Release":{"amount":2000000}} |
 
 
 ### Output Trace
@@ -106,7 +105,6 @@
 | ID        | Size (bytes) | Fees (lovelace) |
 | :-------- | -----------: | --------------: |
 | release-1 |         3391 |          232777 |
-| release-2 |         3391 |          232777 |
+| release-2 |         3395 |          232865 |
 | release-3 |         3395 |          232865 |
-| release-4 |         3395 |          232865 |
 
