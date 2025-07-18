@@ -84,11 +84,6 @@ export async function betWin({
     const hash  = resolvePaymentKeyHash(oracleAddr);
     const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
 
-    //const redeemer = {
-    //  constructor: 1,
-    //  fields: [{ bytes: winnerPKH }],
-    //};
-
     const redeemer = makeWinRedeemer(winnerPKH);
 
     const exUnits: Budget = {
@@ -151,19 +146,6 @@ export async function betWin({
   .txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
   .requiredSignerHash(oraclePKH)
   .complete();
-
-
-  //const tx = new Transaction({ initiator: oracle, fetcher: provider })
-  //      .redeemValue({
-  //          value: utxo,
-  //          script: plutusScript,
-  //          datum: datum,
-  //          redeemer: redeemer,
-  //      })
-  //  .sendValue(winnerAddr, utxo)
-  //  .setRequiredSigners([oracleAddr])
-
-    //const unsignedTx = await tx.build();
 
 
     console.log("oracle key hash in betWin: ", oraclePKH);

@@ -36,6 +36,7 @@ export async function handleEndAuction(
 
   const now = BigInt(Math.floor(Date.now() / 1000));
   if (now < deadline) {
+    console.log("Now: ", now, " deadline: ", deadline);
     throw new Error('Auction deadline not reached yet.');
   }
 

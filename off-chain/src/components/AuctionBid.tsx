@@ -41,7 +41,9 @@ export default function AuctionBid() {
         const datumHex = utxo.output.plutusData;
         if (!datumHex) continue;
         const parsed = parseAuctionDatum(datumHex);
-        if (parsed.status !== AuctionStatus.STARTED) continue;
+        if (parsed.status !== AuctionStatus.NOT_STARTED) continue;
+        //if(parsed.deadline < Date.now()) continue;
+        if (parsed.object != "prova") continue;
 
         startedAuctions.push({
           object: parsed.object,
@@ -147,17 +149,31 @@ export default function AuctionBid() {
 
   return (
     <div className="space-y-4">
-      <ul className="border rounded p-4">
+    <label className='rocks'>
+        Active auctions
+    </label>
+      <ul className="border rounded p-4 max-h-80 overflow-y-auto">
         {auctions.map((auction, idx) => (
-          <li
-            key={idx}
-            className={`p-2 border-b cursor-pointer hover:bg-gray-100 ${selectedAuction?.object === auction.object ? 'bg-blue-100' : ''}`}
-            onClick={() => setSelectedAuction(auction)}
-          >
-            <strong>{auction.object}</strong> — Current bid: {auction.currentBid.toString()} — Ends: {new Date(Number(auction.deadline) * 1000).toLocaleString()}
-          </li>
-        ))}
-      </ul>
+    <li
+      key={idx}
+      className={`p-2 border-b cursor-pointer hover:bg-gray-100 ${
+        selectedAuction?.object === auction.object ? 'bg-blue-100' : ''
+      }`}
+      onClick={() => setSelectedAuction(auction)}
+    >
+      <strong>{auction.object}</strong> — Current bid: {auction.currentBid.toString()} — Ends: {
+        new Date(Number(auction.deadline)).toLocaleString('it-IT', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        })
+      }
+    </li>
+  ))}
+</ul>
 
       <form onSubmit={handleBid} className="space-y-4">
         <label className="block">

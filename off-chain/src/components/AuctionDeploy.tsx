@@ -17,13 +17,48 @@ type Props = {
 };
 
 
+
+
+
 export default function AuctionDeploy({ onDeploy }: Props) {
   const [seller, setSeller] = useState('');
-  const [auctionDuration, setAuctionDuration] = useState('');
+  const [durationValue, setDurationValue] = useState<number>(1); // default: 1 unit
+  const [durationUnit, setDurationUnit] = useState<'minutes' | 'hours'>('hours');
+  const [auctionDuration, setAuctionDuration] = useState<bigint>(BigInt(0));
   const [startingBid, setStartingBid] = useState<bigint>(0n);
   const [object, setObject] = useState('');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
+
+  function updateAuctionDuration(val: number, unit: 'minutes' | 'hours') {
+  const durationInSeconds = unit === 'hours' 
+    ? val * 3600 
+    : val * 60;
+
+    setAuctionDuration(BigInt(durationInSeconds));
+  }
+
+  function handleDurationChange(val: number) {
+    setDurationValue(val);
+    updateAuctionDuration(val, durationUnit);
+  }
+
+  function handleUnitChange(unit: 'minutes' | 'hours') {
+  let newDurationValue = durationValue;
+
+  if (unit === 'minutes' && durationUnit === 'hours') {
+    // Converti ore in minuti interi
+    newDurationValue = Math.round(durationValue * 60);
+  } else if (unit === 'hours' && durationUnit === 'minutes') {
+    // Converti minuti in ore (step di 0.5)
+    newDurationValue = Math.round(durationValue / 30) * 0.5;
+  }
+
+  setDurationUnit(unit);
+  setDurationValue(newDurationValue);
+  updateAuctionDuration(newDurationValue, unit);
+}
+
 
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -92,30 +127,47 @@ export default function AuctionDeploy({ onDeploy }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <input
-        type="text"
-        placeholder="Auction Object"
-        value={object}
-        onChange={(e) => setObject(e.target.value)}
-        required
-        className="border rounded-lg px-3 py-2"
-      />
-      <input
-        type="number"
-        placeholder="Duration (seconds)"
-        value={auctionDuration}
-        onChange={(e) => setAuctionDuration(e.target.value)}
-        required
-        className="border rounded-lg px-3 py-2"
-      />
-      <button
-        type="submit"
-        className="bg-blue-600 text-white rounded-xl py-2 font-semibold hover:bg-blue-700 transition duration-200"
-      >
-        Deploy
-      </button>
-    </form>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
+  {/* Auction Object */}
+  <input
+    type="text"
+    placeholder="Auction Object"
+    value={object}
+    onChange={(e) => setObject(e.target.value)}
+    required
+    className="border rounded-lg px-3 py-2 w-full"
+  />
+
+  {/* Duration + unit, same width as input above */}
+  <div className="flex w-full gap-2">
+    <input
+      type="number"
+      step={durationUnit === 'hours' ? 0.5 : 1}
+      min={1}
+      value={durationValue}
+      onChange={(e) => handleDurationChange(parseFloat(e.target.value))}
+      required
+      className="border rounded-lg px-3 py-2 flex-grow"
+    />
+    <select
+      value={durationUnit}
+      onChange={(e) => handleUnitChange(e.target.value as 'minutes' | 'hours')}
+      className="border rounded-lg px-3 py-2 w-28"
+    >
+      <option value="minutes">Minuti</option>
+      <option value="hours">Ore</option>
+    </select>
+  </div>
+
+  {/* Submit button */}
+  <button
+    type="submit"
+    className="bg-blue-600 text-white rounded-xl py-2 font-semibold hover:bg-blue-700 transition duration-200"
+  >
+    Deploy
+  </button>
+</form>
+
   );
 
 }

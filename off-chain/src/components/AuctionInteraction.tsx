@@ -6,7 +6,7 @@ import AuctionStart from '@/components/AuctionStart';
 import AuctionBid from '@/components/AuctionBid';
 import AuctionWithdraw from './AuctionWithdraw';
 
-export default function AuctionSellerUX() {
+export function AuctionSellerUX() {
   const [object, setObject] = useState('');
   const [deadline, setDeadline] = useState<bigint>(0n);
 
@@ -15,7 +15,7 @@ export default function AuctionSellerUX() {
   return (
     <div className="w-full max-w-3xl mx-auto mt-2">
       {/* Deploy Section */}
-      <div className="bg-white p-6 rounded-xl shadow-md mb-10">
+      <div className="bg-white p-3 rounded-xl shadow-md mb-10">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">1. Deploy Auction</h2>
         <AuctionDeploy
           onDeploy={(obj: string, dl: bigint) => {
@@ -26,7 +26,7 @@ export default function AuctionSellerUX() {
       </div>
 
       {/* Start Section */}
-      <div className="bg-white p-6 rounded-xl shadow-md">
+      <div className="bg-white p-3 rounded-xl shadow-md">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">2. Manage Auction</h2>
         <AuctionStart object={object} deadline={deadline} />
       </div>
@@ -34,7 +34,7 @@ export default function AuctionSellerUX() {
   );
 }
 
-export function AuctionBidderUX() {
+export default function AuctionBidderUX() {
   return (
     <div className="w-full max-w-4xl mx-auto mt-4">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Bidder panel</h2>

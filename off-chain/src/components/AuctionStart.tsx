@@ -34,6 +34,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
   const [loading, setLoading] = useState(false);
   const [endTxHash, setEndTxHash] = useState('');
   const [endLoading, setEndLoading] = useState(false);
+  const [datumLoaded, setDatumLoaded] = useState(false);
+
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -87,6 +89,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       if (!deployUtxos) {
         throw new Error('No matching UTxO found with the given datum.');
       }
+
+      setDatumLoaded(true); 
 
       console.log(deployUtxos);
 
@@ -142,8 +146,21 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {/* Display Object & Deadline */}
       <div className="text-sm text-gray-700">
-        <p><strong>Object:</strong> {object}</p>
-        <p><strong>Deadline:</strong> {deadline.toString()}</p>
+        <p><strong>Object: </strong> {object}</p>
+        <p><strong>Deadline: </strong>
+        {Number(deadline) !== 0 && (
+           
+            new Date(Number(deadline)).toLocaleString('it-IT', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false // orario in formato 24h
+            })
+          
+        )}
+        </p>
       </div>
 
       {/* Starting Bid Input */}

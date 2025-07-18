@@ -21,7 +21,7 @@ import { makeBetDatum, makeJoinRedeemer } from '@/utils/bet';
 import { betWin } from '@/utils/betWin';
 import { betTimeout } from '@/utils/betTimeout';
 
-const FIVE_MINUTES_MS = 2 * 60 * 1000;
+const TWO_MINUTES_MS = 2 * 60 * 1000;
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
 export default function BetJoin() {
@@ -62,7 +62,7 @@ export default function BetJoin() {
       const p2Utxos = await p2wallet.getUtxos();
 
       const lovelace = BigInt(wager);
-      const deadline = BigInt(Date.now() + FIVE_MINUTES_MS);
+      const deadline = BigInt(Date.now() + TWO_MINUTES_MS);
 
       const redeemer2 = {
         constructor: 0,
@@ -85,10 +85,17 @@ export default function BetJoin() {
       const { scriptCbor, scriptAddr } = getScript();
 
       const datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
-      const prev_datum = makeBetDatum(oraclePKH, 0n, p1PKH, p2PKH, 1n, false);
+      const prev_datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, false);
       const assets: Asset[] = [{ unit: 'lovelace', quantity: (BigInt(wager) + BigInt(wager)).toString() }];
       const p1assets: Asset[] = [{ unit: 'lovelace', quantity: "1400000"}]
-
+      const deployDatum = makeBetDatum(
+              "",
+              0n,
+              "",
+              "",
+              0n,
+              false,
+            );
       console.log("deplot tx hash: ", deployTxHash);
       const utxo = await getUtxoByTxHash(deployTxHash);
       console.log("deploy utxos");
@@ -107,10 +114,10 @@ export default function BetJoin() {
         utxo.output.amount,
         //utxo.output.address
       )
-      .txInInlineDatumPresent()
-      //.txInDatumValue(datum)
+      //.txInInlineDatumPresent()
+      .txInDatumValue(deployDatum)
       //.txInRedeemerValue(redeemer)
-      .txInRedeemerValue(serializeData(redeemer), "CBOR")
+      //.txInRedeemerValue(serializeData(redeemer), "CBOR")
       .txInScript(scriptCbor)
       //.txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
       .txInCollateral(utxos[0].input.txHash, utxos[0].input.outputIndex)
@@ -148,8 +155,8 @@ export default function BetJoin() {
         });
       }, 1000);
 
-      // noWinner = Math.random() < 0.1;
-      const noWinner = false;
+      const noWinner = Math.random() < 0.2;
+
 
       if (noWinner) {
         setTimeout(async () => {
@@ -176,10 +183,10 @@ export default function BetJoin() {
           setWinnerMsg('Nessun vincitore.');
           setBorderColor('border-red-600');
           setStatus('done');
-        }, FIVE_MINUTES_MS + 1);
+        }, TWO_MINUTES_MS + 1);
       } else {
-        //const delayMs = Math.floor(Math.random() * (TWO_MINUTES_MS - 10000)) + 5000;
-        const delayMs = 1 * 1000;
+        const delayMs = Math.floor(Math.random() * (TWO_MINUTES_MS - 10000)) + 5000;
+        //const delayMs = 1 * 1000;
         setTimeout(async () => {
           console.log("DATUM: ", resolveDataHash(datum));
           const result = await betWin({
