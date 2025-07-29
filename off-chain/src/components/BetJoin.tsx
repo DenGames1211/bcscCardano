@@ -280,7 +280,7 @@ export default function BetJoin() {
   return (
     <form
       onSubmit={handleSubmit}
-      className={`max-w-xl mx-auto p-6 bg-white rounded-2xl shadow-md flex flex-col gap-4 border-4 ${borderColor}`}
+      className={`max-w-xl mx-auto p-6 bg-white rounded-2xl shadow-md flex flex-col gap-4`}
     >
       <h2 className="text-2xl font-semibold text-gray-800">Join Bet Contract</h2>
 

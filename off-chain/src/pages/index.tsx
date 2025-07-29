@@ -4,7 +4,6 @@ import { useWallet } from '@meshsdk/react';
 import { CardanoWallet } from '@meshsdk/react';
 import ConnectWallet from "@/components/ConnectWallet";
 import BetInteraction from "@/components/BetInteraction_";
-import AuctionSellerUX from "@/components/AuctionInteraction";
 
 export default function Home() {
   return (
