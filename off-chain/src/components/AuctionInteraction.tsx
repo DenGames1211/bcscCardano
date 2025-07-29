@@ -34,7 +34,7 @@ export function AuctionSellerUX() {
   );
 }
 
-export default function AuctionBidderUX() {
+export function AuctionBidderUX() {
   return (
     <div className="w-full max-w-4xl mx-auto mt-4">
       <h2 className="text-xl font-semibold text-gray-800 mb-4">Bidder panel</h2>

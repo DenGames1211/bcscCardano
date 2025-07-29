@@ -6,6 +6,7 @@ import {
   BlockfrostProvider,
   deserializeAddress,
   hexToBytes,
+  mConStr0,
   MeshTxBuilder,
   serializeData,
 } from '@meshsdk/core';
@@ -18,8 +19,9 @@ import {
   makeAuctionDatum,
   AuctionStatus,
   makeStartRedeemer,
+  makeBidRedeemer,
 } from '@/utils/auction';
-import { handleEndAuction } from '@/utils/auctionEnd'; 
+import { handleEndAuction } from '@/utils/auctionEnd';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
@@ -28,8 +30,17 @@ interface AuctionStartProps {
   deadline: bigint;
 }
 
+function makeRedeemer(
+  val: bigint
+) {
+  return mConStr0(
+    [val]
+  )
+}
+
+
 export default function AuctionStart({ object, deadline }: AuctionStartProps) {
-  const [startingBid, setStartingBid] = useState<string>('100000000'); 
+  const [startingBid, setStartingBid] = useState<string>('100000000');
   const [txHash, setTxHash] = useState('');
   const [loading, setLoading] = useState(false);
   const [endTxHash, setEndTxHash] = useState('');
@@ -56,7 +67,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         sellerPubKeyHash,
         object,
         deadline,
-        AuctionStatus.STARTED,
+        //AuctionStatus.STARTED,
+        1n,
         sellerPubKeyHash,
         startingBidBigInt
       );
@@ -65,12 +77,12 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         sellerPubKeyHash,
         object,
         deadline,
-        AuctionStatus.NOT_STARTED,
+        0n,
         sellerPubKeyHash,
         BigInt(0)
       );
 
-      const redeemer = makeStartRedeemer();
+      const redeemer = mConStr0([0]);
 
       const assets: Asset[] = [
         { unit: 'lovelace', quantity: startingBidBigInt.toString() },
@@ -86,35 +98,51 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
         datum: deployDatum,
       });
 
+
       if (!deployUtxos) {
         throw new Error('No matching UTxO found with the given datum.');
       }
 
-      setDatumLoaded(true); 
+      console.log("deploy utxos: ", deployUtxos);
 
-      console.log(deployUtxos);
+      setDatumLoaded(true);
+
+      //console.log(deployUtxos);
 
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
       const unsignedTx = await txBuilder
         .setNetwork("preview")
-        .spendingPlutusScriptV3()
-        .txIn(deployUtxos.input.txHash, deployUtxos.input.outputIndex)
+        .spendingPlutusScript("V3")
+        .txIn(
+          deployUtxos.input.txHash,
+          deployUtxos.input.outputIndex,
+          deployUtxos.output.amount,
+          scriptAddr
+        )
         //.txInInlineDatumPresent()
-        .txInDatumValue(deployDatum)
-        .txInRedeemerValue(serializeData(redeemer), 'CBOR')
-        .txInCollateral(sellerUtxos[0].input.txHash, sellerUtxos[0].input.outputIndex)
+        .spendingReferenceTxInInlineDatumPresent()
+        .spendingReferenceTxInRedeemerValue(redeemer)
+
         .txInScript(scriptCbor)
+        .txInCollateral(
+          sellerUtxos[0].input.txHash,
+          sellerUtxos[0].input.outputIndex,
+        )
         .txOut(scriptAddr, assets)
         .txOutInlineDatumValue(datum)
         .txOut(addr, sellerAssets)
+
         .changeAddress(addr)
-        .selectUtxosFrom(sellerUtxos)
         .requiredSignerHash(sellerPubKeyHash)
+        .selectUtxosFrom(sellerUtxos)
+
         .complete();
 
+      console.log(txBuilder.txHex);
       const signedTx = await sellerWallet.signTx(unsignedTx, true);
       const txHash = await sellerWallet.submitTx(signedTx);
+
       setTxHash(txHash || 'Transaction sent!');
     } catch (err: any) {
       console.error(err);
@@ -148,8 +176,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       <div className="text-sm text-gray-700">
         <p><strong>Object: </strong> {object}</p>
         <p><strong>Deadline: </strong>
-        {Number(deadline) !== 0 && (
-           
+          {Number(deadline) !== 0 && (
+
             new Date(Number(deadline)).toLocaleString('it-IT', {
               day: '2-digit',
               month: '2-digit',
@@ -158,8 +186,8 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
               minute: '2-digit',
               hour12: false // orario in formato 24h
             })
-          
-        )}
+
+          )}
         </p>
       </div>
 
@@ -195,12 +223,12 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
       {/* TX Hashes Output */}
       {txHash && (
         <div className="mt-2 text-sm text-green-700 break-words">
-          <strong>Start Tx:</strong> {txHash}
+          <strong>Start OK - TxHash:</strong> {txHash}
         </div>
       )}
       {endTxHash && (
         <div className="mt-2 text-sm text-blue-700 break-words">
-          <strong>End Tx:</strong> {endTxHash}
+          <strong>End OK - TxHash:</strong> {endTxHash}
         </div>
       )}
     </form>

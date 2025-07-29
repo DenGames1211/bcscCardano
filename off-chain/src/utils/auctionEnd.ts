@@ -1,6 +1,7 @@
 import {
   BlockfrostProvider,
   deserializeAddress,
+  mConStr0,
   MeshTxBuilder,
   UTxO,
 } from '@meshsdk/core';
@@ -28,13 +29,14 @@ export async function handleEndAuction(
   const wallet = await getBrowserWallet();
   const [addr] = await wallet.getUsedAddresses();
   const sellerHash = deserializeAddress(seller).pubKeyHash;
+  const sellerUtxos = await wallet.getUsedUTxOs();
   const callerHash = deserializeAddress(addr).pubKeyHash;
-
+  const sellerPKH = deserializeAddress(seller).pubKeyHash;
   if (callerHash !== sellerHash) {
     throw new Error('Only the seller can end this auction.');
   }
 
-  const now = BigInt(Math.floor(Date.now() / 1000));
+  const now = BigInt(Date.now());
   if (now < deadline) {
     console.log("Now: ", now, " deadline: ", deadline);
     throw new Error('Auction deadline not reached yet.');
@@ -51,17 +53,17 @@ export async function handleEndAuction(
 
     try {
       const datum = parseAuctionDatum(utxo.output.plutusData);
-
+      console.log("datum controllato: ", datum);
+      console.log("variables: ", object, deadline, sellerPKH);
       if (
-        datum.status === AuctionStatus.ENDED ||
-        datum.status === AuctionStatus.NOT_STARTED
+        datum.status != 1n // only started auctions can be ended
       )
         continue;
 
       if (
         datum.object !== object ||
         datum.deadline !== deadline ||
-        datum.seller !== seller
+        datum.seller !== sellerPKH
       )
         continue;
 
@@ -69,36 +71,50 @@ export async function handleEndAuction(
         datum.seller,
         datum.object,
         datum.deadline,
-        AuctionStatus.ENDED,
+        3n,
         datum.highestBidder,
         datum.highestBid
       );
 
+      console.log("new datum: ", newDatum);
+
       const sellerAddress = seller;
+      const redeemer = mConStr0([3]);
 
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
       txBuilder
         .spendingPlutusScriptV3()
-        .txIn(utxo.input.txHash, utxo.input.outputIndex)
+        .txIn(
+          utxo.input.txHash,
+          utxo.input.outputIndex
+        )
         .txInInlineDatumPresent()
-        .txInRedeemerValue(makeEndRedeemer())
+        .txInRedeemerValue(redeemer)
         .txInScript(scriptCbor)
-        .txInCollateral(walletUtxos[0].input.txHash, walletUtxos[0].input.outputIndex)
+        .txInCollateral(
+          walletUtxos[0].input.txHash,
+          walletUtxos[0].input.outputIndex
+        )
+
         .txOut(sellerAddress, [
           { unit: 'lovelace', quantity: datum.highestBid.toString() },
         ])
-        .txOutInlineDatumValue(newDatum);
+        .txOut(scriptAddr, [{ unit: 'lovelace', quantity: "2000000" },])
+        .txOutInlineDatumValue(newDatum)
 
       const unsignedTx = await txBuilder
-        .changeAddress(addr)
-        .requiredSignerHash(sellerHash)
+        .selectUtxosFrom(walletUtxos)
+        .changeAddress(sellerAddress)
+        .requiredSignerHash(sellerPKH)
         .complete();
 
       const signedTx = await wallet.signTx(unsignedTx, true);
       const txHash = await wallet.submitTx(signedTx);
 
+      console.log("end ok, tx hash: ", txHash);
       return txHash;
+
     } catch (err) {
       console.warn('Skipping UTxO due to parsing error or mismatch.', err);
       continue;

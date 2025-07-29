@@ -1,0 +1,81 @@
+{
+  "preamble": {
+    "title": "on-chain/scripts",
+    "description": "Aiken contracts for project 'on-chain/scripts'",
+    "version": "0.0.0",
+    "plutusVersion": "v3",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.1.17+c3a7fba"
+    },
+    "license": "Apache-2.0"
+  },
+  "validators": [
+    {
+      "title": "minimal.minimal.spend",
+      "datum": {
+        "title": "datum",
+        "schema": {
+          "$ref": "#/definitions/minimal~1Datum"
+        }
+      },
+      "redeemer": {
+        "title": "redeemer",
+        "schema": {
+          "$ref": "#/definitions/minimal~1Redeemer"
+        }
+      },
+      "compiledCode": "59010b01010029800aba2aba1aab9faab9eaab9dab9a48888896600264646644b30013370e900118031baa0018994c004c02800660146016003370e90002444b30013001300a375400d132325980098080014566002600660186ea80122b30013003375a601e601a6ea802226466446600400400244b30010018a508acc004cdc79bae30120010038a518998010011809800a01c40446eb0c040c044c044c044c044c044c044c044c044c038dd518080059bae300f300d3754601e601a6ea80122b30013370e6eb4c03cc034dd50042400514a114a2805900b45900b45900e1bad300e001300b375400d16402430073754003164014600e002600e6010002600e00260066ea801e29344d9590011",
+      "hash": "554f1caad211bf7012962d70597657b1a3a7e33739a9cd3092ecc793"
+    },
+    {
+      "title": "minimal.minimal.else",
+      "redeemer": {
+        "schema": {}
+      },
+      "compiledCode": "59010b01010029800aba2aba1aab9faab9eaab9dab9a48888896600264646644b30013370e900118031baa0018994c004c02800660146016003370e90002444b30013001300a375400d132325980098080014566002600660186ea80122b30013003375a601e601a6ea802226466446600400400244b30010018a508acc004cdc79bae30120010038a518998010011809800a01c40446eb0c040c044c044c044c044c044c044c044c044c038dd518080059bae300f300d3754601e601a6ea80122b30013370e6eb4c03cc034dd50042400514a114a2805900b45900b45900e1bad300e001300b375400d16402430073754003164014600e002600e6010002600e00260066ea801e29344d9590011",
+      "hash": "554f1caad211bf7012962d70597657b1a3a7e33739a9cd3092ecc793"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "title": "ByteArray",
+      "dataType": "bytes"
+    },
+    "Int": {
+      "dataType": "integer"
+    },
+    "minimal/Datum": {
+      "title": "Datum",
+      "anyOf": [
+        {
+          "title": "Datum",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "owner",
+              "$ref": "#/definitions/ByteArray"
+            }
+          ]
+        }
+      ]
+    },
+    "minimal/Redeemer": {
+      "title": "Redeemer",
+      "anyOf": [
+        {
+          "title": "Redeemer",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "val",
+              "$ref": "#/definitions/Int"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

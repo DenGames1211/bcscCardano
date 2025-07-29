@@ -7,6 +7,8 @@ import {
   MeshTxBuilder,
   UTxO,
   deserializeAddress,
+  mConStr0,
+  mConStr1,
 } from '@meshsdk/core';
 import { deserializePlutusData } from '@meshsdk/core-csl';
 import { getBrowserWallet, getAuctionScript } from '@/utils/common';
@@ -23,7 +25,6 @@ interface AuctionInfo {
 }
 
 
-
 export default function AuctionBid() {
   const [bid, setBid] = useState('100000000');
   const [txHash, setTxHash] = useState('');
@@ -34,16 +35,18 @@ export default function AuctionBid() {
   const fetchAuctions = async () => {
     const { scriptAddr } = getAuctionScript();
     const utxos = await provider.fetchAddressUTxOs(scriptAddr);
+    console.log()
     const startedAuctions: AuctionInfo[] = [];
 
     for (const utxo of utxos) {
       try {
         const datumHex = utxo.output.plutusData;
+        console.log(utxo)
         if (!datumHex) continue;
         const parsed = parseAuctionDatum(datumHex);
-        if (parsed.status !== AuctionStatus.NOT_STARTED) continue;
+        if (parsed.status !== 1n && parsed.status != 2n) continue;
         //if(parsed.deadline < Date.now()) continue;
-        if (parsed.object != "prova") continue;
+        //if (parsed.object != "prova") continue;
 
         startedAuctions.push({
           object: parsed.object,
@@ -51,6 +54,8 @@ export default function AuctionBid() {
           currentBid: parsed.highestBid!,
           utxo,
         });
+
+        setBid(parsed.highestBid!.toString());
       } catch {
         continue;
       }
@@ -60,7 +65,13 @@ export default function AuctionBid() {
   };
 
   useEffect(() => {
-    fetchAuctions();
+    fetchAuctions(); // fetch on initial mount
+
+    const interval = setInterval(() => {
+      fetchAuctions(); // fetch every 20 seconds (average block time)
+    }, 20000);
+
+    return () => clearInterval(interval); // cleanup
   }, []);
 
   async function handleBid(event: FormEvent<HTMLFormElement>) {
@@ -83,13 +94,13 @@ export default function AuctionBid() {
         throw new Error('Your bid must be higher than the current highest.');
       }
 
-      const redeemer = makeBidRedeemer();
-
+      const redeemer = mConStr0([1]);
+      console.log("bid: ", bidBigInt)
       const newDatum = makeAuctionDatum(
         parsed.seller,
         parsed.object,
         parsed.deadline!,
-        AuctionStatus.STARTED,
+        1n, // status STARTED again!!
         bidderPubKeyHash,
         bidBigInt
       );
@@ -98,36 +109,52 @@ export default function AuctionBid() {
         { unit: 'lovelace', quantity: bidBigInt.toString() },
       ];
 
+      const outbidAssets: Asset[] = [
+        { unit: 'lovelace', quantity: parsed.highestBid!.toString() },
+      ];
+
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
       txBuilder
+        .setNetwork("preview")
         .spendingPlutusScriptV3()
-        .txIn(auctionUtxo.input.txHash, auctionUtxo.input.outputIndex)
-        .txInInlineDatumPresent()
-        .txInRedeemerValue(redeemer)
+        .txIn(
+          auctionUtxo.input.txHash,
+          auctionUtxo.input.outputIndex,
+          //auctionUtxo.output.amount,
+          //scriptAddr,
+        )
+        .spendingReferenceTxInInlineDatumPresent()
+        .spendingReferenceTxInRedeemerValue(redeemer)
+
         .txInScript(scriptCbor)
-        .txInCollateral(bidderUtxos[0].input.txHash, bidderUtxos[0].input.outputIndex)
+        .txInCollateral(
+          bidderUtxos[0].input.txHash,
+          bidderUtxos[0].input.outputIndex
+        )
         .txOut(scriptAddr, assets)
         .txOutInlineDatumValue(newDatum);
 
-      if (parsed.highestBid! > 100000000n) {
-        const outbidDatum = makeAuctionDatum(
-          parsed.seller,
-          parsed.object,
-          parsed.deadline!,
-          AuctionStatus.OUTBID,
-          parsed.highestBidder,
-          parsed.highestBid!
-        );
+      //.txOut()
 
-        const outbidAssets: Asset[] = [
-          { unit: 'lovelace', quantity: parsed.highestBid!.toString() },
-        ];
+      //if (parsed.highestBid! > bidBigInt) {
+      //  const outbidDatum = makeAuctionDatum(
+      //    parsed.seller,
+      //    parsed.object,
+      //    parsed.deadline!,
+      //    3n, // status OUTBID
+      //   parsed.highestBidder,
+      //    parsed.highestBid!
+      //  );
 
-        txBuilder
-          .txOut(scriptAddr, outbidAssets)
-          .txOutInlineDatumValue(outbidDatum);
-      }
+      //  const outbidAssets: Asset[] = [
+      //    { unit: 'lovelace', quantity: parsed.highestBid!.toString() },
+      //  ];
+
+      //  txBuilder
+      //    .txOut(scriptAddr, outbidAssets)
+      //    .txOutInlineDatumValue(outbidDatum);
+      //}
 
       const unsignedTx = await txBuilder
         .changeAddress(addr)
@@ -135,6 +162,8 @@ export default function AuctionBid() {
         .requiredSignerHash(bidderPubKeyHash)
         .complete();
 
+
+      console.log("sended datum: ", newDatum);
       const signedTx = await bidderWallet.signTx(unsignedTx, true);
       const submittedHash = await bidderWallet.submitTx(signedTx);
       setTxHash(submittedHash);
@@ -149,31 +178,30 @@ export default function AuctionBid() {
 
   return (
     <div className="space-y-4">
-    <label className='rocks'>
+      <label className='rocks'>
         Active auctions
-    </label>
+      </label>
       <ul className="border rounded p-4 max-h-80 overflow-y-auto">
         {auctions.map((auction, idx) => (
-    <li
-      key={idx}
-      className={`p-2 border-b cursor-pointer hover:bg-gray-100 ${
-        selectedAuction?.object === auction.object ? 'bg-blue-100' : ''
-      }`}
-      onClick={() => setSelectedAuction(auction)}
-    >
-      <strong>{auction.object}</strong> — Current bid: {auction.currentBid.toString()} — Ends: {
-        new Date(Number(auction.deadline)).toLocaleString('it-IT', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        })
-      }
-    </li>
-  ))}
-</ul>
+          <li
+            key={idx}
+            className={`p-2 border-b cursor-pointer hover:bg-gray-100 ${selectedAuction?.object === auction.object ? 'bg-blue-100' : ''
+              }`}
+            onClick={() => setSelectedAuction(auction)}
+          >
+            <strong>{auction.object}</strong> — Current bid: {auction.currentBid.toString()} — Ends: {
+              new Date(Number(auction.deadline)).toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+              })
+            }
+          </li>
+        ))}
+      </ul>
 
       <form onSubmit={handleBid} className="space-y-4">
         <label className="block">
@@ -192,7 +220,7 @@ export default function AuctionBid() {
         >
           {loading ? 'Submitting...' : 'Place Bid'}
         </button>
-        {txHash && <p className="text-green-600 mt-2">Tx Hash: {txHash}</p>}
+        {txHash && <p className="text-green-600 mt-2">Bid Tx Hash: {txHash}</p>}
       </form>
     </div>
   );

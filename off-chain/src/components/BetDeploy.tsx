@@ -26,10 +26,7 @@ export default function BetDeploy() {
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string>('');
 
-  const oracleMnemonic = ["post","crash","deer","idle","churn","cause","six","chuckle","priority","truth","tiger","disorder","devote","tree","clerk","planet","glance","jewel","start","erode","public","umbrella","aware","stamp"];
-
-
-
+  //const oracleMnemonic = ["post","crash","deer","idle","churn","cause","six","chuckle","priority","truth","tiger","disorder","devote","tree","clerk","planet","glance","jewel","start","erode","public","umbrella","aware","stamp"];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,25 +36,11 @@ export default function BetDeploy() {
     const utxos = await wallet.getUtxos();
     const [addr] = await wallet.getUsedAddresses();
 
-      const oracleWallet = new MeshWallet({
-      networkId: 0,
-      fetcher: provider,
-      submitter: provider,
-      key: {
-        type: 'mnemonic',
-        words: oracleMnemonic,
-      },
-    });
-    await oracleWallet.init();
-
 
     const lovelace = BigInt(wager);
     const deadline = BigInt(Date.now() + TWO_MINUTES_MS);
 
     try {
-        const [oracleAddr] = await oracleWallet.getUsedAddresses();
-        const oraclePKH = deserializeAddress(oracleAddr).pubKeyHash;
-        const oracleUtxos = await oracleWallet.getUtxos();
       // 2) build the datum
       const datum = makeBetDatum(
         deserializeAddress(oracle).pubKeyHash,
@@ -68,14 +51,6 @@ export default function BetDeploy() {
         false // not yet joined
       );
 
-      const newdatum = makeBetDatum(
-        "",
-        0n,
-        "",
-        "",
-        0n,
-        false,
-      );
       // 3) prepare assets + scrip
       const assets: Asset[] = [{ unit: 'lovelace', quantity: "2000000" }];
       const { scriptAddr, scriptCbor } = getScript();
@@ -86,16 +61,16 @@ export default function BetDeploy() {
         
         .txOut(scriptAddr, [{ unit: 'lovelace', quantity: '2000000' }]) // manda 2 ADA al contratto
         .txOutDatumHashValue(datum)
-        .changeAddress(oracleAddr) // il tuo indirizzo (wallet mittente)
-        .selectUtxosFrom(oracleUtxos) // UTxO da cui prendi i fondi
-        .txInCollateral(oracleUtxos[0].input.txHash, oracleUtxos[0].input.outputIndex); 
+        .changeAddress(addr) // il tuo indirizzo (wallet mittente)
+        .selectUtxosFrom(utxos) // UTxO da cui prendi i fondi
+        .txInCollateral(utxos[0].input.txHash, utxos[0].input.outputIndex); 
 
       await txBuilder.complete();
 
 
-      const signed = await oracleWallet.signTx(txBuilder.txHex);
+      const signed = await wallet.signTx(txBuilder.txHex);
       console.log("deploy transaction: ", txBuilder);
-      const hash = await oracleWallet.submitTx(signed);
+      const hash = await wallet.submitTx(signed);
 
 
       setTxHash(hash);

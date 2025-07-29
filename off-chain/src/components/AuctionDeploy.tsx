@@ -1,6 +1,6 @@
 import React, { FormEvent, useState } from 'react';
 import {
-    Asset,
+  Asset,
   BlockfrostProvider,
   deserializeAddress,
   resolveDataHash,
@@ -31,9 +31,9 @@ export default function AuctionDeploy({ onDeploy }: Props) {
   const [loading, setLoading] = useState(false);
 
   function updateAuctionDuration(val: number, unit: 'minutes' | 'hours') {
-  const durationInSeconds = unit === 'hours' 
-    ? val * 3600 
-    : val * 60;
+    const durationInSeconds = unit === 'hours'
+      ? val * 3600
+      : val * 60;
 
     setAuctionDuration(BigInt(durationInSeconds));
   }
@@ -44,20 +44,20 @@ export default function AuctionDeploy({ onDeploy }: Props) {
   }
 
   function handleUnitChange(unit: 'minutes' | 'hours') {
-  let newDurationValue = durationValue;
+    let newDurationValue = durationValue;
 
-  if (unit === 'minutes' && durationUnit === 'hours') {
-    // Converti ore in minuti interi
-    newDurationValue = Math.round(durationValue * 60);
-  } else if (unit === 'hours' && durationUnit === 'minutes') {
-    // Converti minuti in ore (step di 0.5)
-    newDurationValue = Math.round(durationValue / 30) * 0.5;
+    if (unit === 'minutes' && durationUnit === 'hours') {
+      // Converti ore in minuti interi
+      newDurationValue = Math.round(durationValue * 60);
+    } else if (unit === 'hours' && durationUnit === 'minutes') {
+      // Converti minuti in ore (step di 0.5)
+      newDurationValue = Math.round(durationValue / 30) * 0.5;
+    }
+
+    setDurationUnit(unit);
+    setDurationValue(newDurationValue);
+    updateAuctionDuration(newDurationValue, unit);
   }
-
-  setDurationUnit(unit);
-  setDurationValue(newDurationValue);
-  updateAuctionDuration(newDurationValue, unit);
-}
 
 
 
@@ -71,12 +71,12 @@ export default function AuctionDeploy({ onDeploy }: Props) {
       if (!usedAddresses || usedAddresses.length === 0) throw new Error('No wallet address found.');
 
       const userAddress = usedAddresses[0];
-      setSeller(userAddress); 
+      setSeller(userAddress);
 
       const utxos = await wallet.getUtxos();
 
       // 1. Prepare script and address
-      const {scriptCbor, scriptAddr} = getAuctionScript(); 
+      const { scriptCbor, scriptAddr } = getAuctionScript();
 
       // 2. Prepare auction deadline (POSIX)
       const now = Date.now();
@@ -92,7 +92,8 @@ export default function AuctionDeploy({ onDeploy }: Props) {
         pubKeyHash,
         object,
         deadline,
-        AuctionStatus.NOT_STARTED,
+        //AuctionStatus.NOT_STARTED,
+        0n,
         pubKeyHash, // first bidder is the seller
         startingBid // initial amount must be 0
       );
@@ -102,21 +103,20 @@ export default function AuctionDeploy({ onDeploy }: Props) {
       const datumHash = resolveDataHash(datum);
       // 5. Build and submit the transaction
       const txBuilder = getTxBuilder()
-        .mintPlutusScriptV3()
+        //.mintPlutusScriptV3()
         .setNetwork("preview")
         .txOut(
-            scriptAddr,
-            assets,
+          scriptAddr,
+          assets,
         )
-        //.txOutInlineDatumValue(datum)
-        .txOutDatumHashValue(datum)
+        .txOutInlineDatumValue(datum)
         .selectUtxosFrom(utxos)
         .changeAddress(userAddress);
 
       await txBuilder.complete();
       const signed = await wallet.signTx(txBuilder.txHex);
       const txHash = await wallet.submitTx(signed);
-
+      console.log(txHash);
       setTxHash(txHash);
     } catch (err: any) {
       console.error(err);
@@ -128,49 +128,56 @@ export default function AuctionDeploy({ onDeploy }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full">
-  {/* Auction Object */}
-  <input
-    type="text"
-    placeholder="Auction Object"
-    value={object}
-    onChange={(e) => setObject(e.target.value)}
-    required
-    className="border rounded-lg px-3 py-2 w-full"
-  />
+      {/* Auction Object */}
+      <input
+        type="text"
+        placeholder="Auction Object"
+        value={object}
+        onChange={(e) => setObject(e.target.value)}
+        required
+        className="border rounded-lg px-3 py-2 w-full"
+      />
 
-  {/* Duration + unit, same width as input above */}
-  <div className="flex w-full gap-2">
-    <input
-      type="number"
-      step={durationUnit === 'hours' ? 0.5 : 1}
-      min={1}
-      value={durationValue}
-      onChange={(e) => handleDurationChange(parseFloat(e.target.value))}
-      required
-      className="border rounded-lg px-3 py-2 flex-grow"
-    />
-    <select
-      value={durationUnit}
-      onChange={(e) => handleUnitChange(e.target.value as 'minutes' | 'hours')}
-      className="border rounded-lg px-3 py-2 w-28"
-    >
-      <option value="minutes">Minuti</option>
-      <option value="hours">Ore</option>
-    </select>
-  </div>
+      {/* Duration + unit, same width as input above */}
+      <div className="flex w-full gap-2">
+        <input
+          type="number"
+          step={durationUnit === 'hours' ? 0.5 : 1}
+          min={1}
+          value={durationValue}
+          onChange={(e) => handleDurationChange(parseFloat(e.target.value))}
+          required
+          className="border rounded-lg px-3 py-2 flex-grow"
+        />
+        <select
+          value={durationUnit}
+          onChange={(e) => handleUnitChange(e.target.value as 'minutes' | 'hours')}
+          className="border rounded-lg px-3 py-2 w-28"
+        >
+          <option value="minutes">Minuti</option>
+          <option value="hours">Ore</option>
+        </select>
+      </div>
 
-  {/* Submit button */}
-  <button
-    type="submit"
-    className="bg-blue-600 text-white rounded-xl py-2 font-semibold hover:bg-blue-700 transition duration-200"
-  >
-    Deploy
-  </button>
-</form>
+      {/* Submit button */}
+      <button
+        type="submit"
+        className="bg-blue-600 text-white rounded-xl py-2 font-semibold hover:bg-blue-700 transition duration-200"
+      >
+        Deploy
+      </button>
+
+      {/* TX hash result */}
+      {txHash && (
+        <p className="mt-2 text-green-600 font-mono break-all">
+          Deploy OK - txHash: {txHash}
+        </p>
+      )}
+    </form>
 
   );
 
 }
 
-  
+
 

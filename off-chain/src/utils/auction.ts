@@ -53,16 +53,16 @@ export function makeAuctionDatum(
   seller: string,      // hex string (es: PubKeyHash)
   object: string,      // string (PlutusData string)
   deadline: bigint,    // Plutus Integer
-  status: AuctionStatus,
+  status: bigint,
   bidder: string,      // hex string
   amount: bigint       // Plutus Integer
 ): AuctionDatum {
   return mConStr(0, [
     seller,
     //fromBytes(hexToBytes(seller)), 
-    object,                   
-    deadline,                    
-    mConStr(status, []),       
+    object,
+    deadline,
+    status,
     bidder,
     //fromBytes(hexToBytes(seller)),  
     amount                       // bigint
@@ -111,7 +111,7 @@ export function parseAuctionDatum(datumHex: string) {
   const sellerBytes = fields.get(0)?.as_bytes();
   const objectBytes = fields.get(1)?.as_bytes();
   const deadlineInt = fields.get(2)?.as_integer()?.as_int();
-  const statusTag = fields.get(3)?.as_constr_plutus_data()?.alternative().to_str();
+  const statusTag = fields.get(3)?.as_integer()?.as_int();
   const highestBidderBytes = fields.get(4)?.as_bytes();
   const highestBidInt = fields.get(5)?.as_integer()?.as_int();
 
@@ -123,7 +123,7 @@ export function parseAuctionDatum(datumHex: string) {
     seller: Buffer.from(sellerBytes).toString('hex'),
     object: Buffer.from(objectBytes).toString('utf8'),
     deadline: BigInt(deadlineInt.to_str()),
-    status: Number(statusTag),
+    status: BigInt(statusTag.to_str()),
     highestBidder: Buffer.from(highestBidderBytes).toString('hex'),
     highestBid: BigInt(highestBidInt.to_str()),
   };

@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useEffect, useState, FormEvent } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Asset,
   BlockfrostProvider,
   deserializeAddress,
+  mConStr0,
   MeshTxBuilder,
   UTxO,
 } from '@meshsdk/core';
-import { deserializePlutusData } from '@meshsdk/core-csl';
 import { getBrowserWallet, getAuctionScript } from '@/utils/common';
 import { parseAuctionDatum, AuctionStatus, makeWithdrawRedeemer } from '@/utils/auction';
 
@@ -19,7 +19,7 @@ interface AuctionInfo {
   deadline: bigint;
   currentBid: bigint;
   utxo: UTxO;
-  status: number;
+  status: bigint;
   isHighestBid: boolean;
 }
 
@@ -28,22 +28,50 @@ export default function AuctionWithdraw() {
   const [selectedAuction, setSelectedAuction] = useState<AuctionInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [bidderUtxos, setBidderUtxos] = useState<UTxO[] | null>(null);
+  const [tick, setTick] = useState(0); // for timer refresh
+  const [txHash, setTxHash] = useState('');
 
-  // Fetch wallet address
+  // Fetch wallet address once on mount
   useEffect(() => {
     (async () => {
       try {
-        const wallet = await getBrowserWallet();
-        const [addr] = await wallet.getUsedAddresses();
+        const bidderWallet = await getBrowserWallet();
+        const [addr] = await bidderWallet.getUsedAddresses();
+        const bidderUtxos = await bidderWallet.getUtxos();
+        setBidderUtxos(bidderUtxos);
         setWalletAddress(addr);
       } catch {
         setWalletAddress(null);
+        setBidderUtxos(null);
       }
     })();
   }, []);
 
-  // Fetch auctions for which the connected wallet has an OUTBID bid
+  // Refresh auction list (manual + periodic)
+  useEffect(() => {
+    if (!walletAddress) return;
+
+    fetchAuctions(); // fetch on load
+
+    const interval = setInterval(() => {
+      fetchAuctions(); // periodic fetch every 3s
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [walletAddress]);
+
+  // Force rerender every second for timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTick((t) => t + 1);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   async function fetchAuctions() {
+    if (!bidderUtxos) return;
     if (!walletAddress) return;
 
     const bidderPubKeyHash = deserializeAddress(walletAddress).pubKeyHash;
@@ -57,10 +85,9 @@ export default function AuctionWithdraw() {
 
       try {
         const datum = parseAuctionDatum(utxo.output.plutusData);
-        if (datum.status !== AuctionStatus.OUTBID) continue;
-        if (datum.highestBidder !== bidderPubKeyHash) continue; // Not bidder's outbid UTxO
+        if (datum.status !== 1n) continue;
+        if (datum.highestBidder !== bidderPubKeyHash) continue;
 
-        // Only keep auctions where this wallet has an OUTBID bid
         filteredAuctions.push({
           object: datum.object,
           deadline: datum.deadline,
@@ -74,7 +101,7 @@ export default function AuctionWithdraw() {
       }
     }
 
-    // To identify which one is the highest bid for this user, fetch all STARTED auctions too
+    // Fetch all STARTED auctions to compare highest bid
     const startedUtxos = await provider.fetchAddressUTxOs(scriptAddr);
     const highestBidsByObject: Record<string, bigint> = {};
 
@@ -82,7 +109,7 @@ export default function AuctionWithdraw() {
       if (!utxo.output.plutusData) continue;
       try {
         const datum = parseAuctionDatum(utxo.output.plutusData);
-        if (datum.status !== AuctionStatus.STARTED) continue;
+        if (datum.status !== 1n) continue;
         const obj = datum.object;
         const bid = datum.highestBid;
         if (!highestBidsByObject[obj] || bid > highestBidsByObject[obj]) {
@@ -93,7 +120,6 @@ export default function AuctionWithdraw() {
       }
     }
 
-    // Mark auctions where user's outbid is actually the highest bid (rare case)
     const finalList = filteredAuctions.map((auc) => ({
       ...auc,
       isHighestBid: highestBidsByObject[auc.object] === auc.currentBid,
@@ -102,19 +128,15 @@ export default function AuctionWithdraw() {
     setAuctions(finalList);
   }
 
-  useEffect(() => {
-    if (walletAddress) {
-      fetchAuctions();
-    }
-  }, [walletAddress]);
-
-  // Calculate time remaining in seconds
   function getTimeRemaining(deadline: bigint): string {
-    const now = BigInt(Math.floor(Date.now() / 1000));
+    const now = BigInt(Date.now());
     const diff = deadline > now ? deadline - now : 0n;
-    const seconds = Number(diff % 60n);
-    const minutes = Number((diff / 60n) % 60n);
-    const hours = Number(diff / 3600n);
+
+    const totalSeconds = diff / 1000n;
+    const seconds = Number(totalSeconds % 60n);
+    const minutes = Number((totalSeconds / 60n) % 60n);
+    const hours = Number(totalSeconds / 3600n);
+
     return `${hours}h ${minutes}m ${seconds}s`;
   }
 
@@ -126,36 +148,43 @@ export default function AuctionWithdraw() {
       const wallet = await getBrowserWallet();
       const [addr] = await wallet.getUsedAddresses();
       const bidderPubKeyHash = deserializeAddress(addr).pubKeyHash;
+      const bidderUtxo = await wallet.getUtxos();
 
       const { scriptAddr, scriptCbor } = getAuctionScript();
 
       const utxo = selectedAuction.utxo;
+      console.log(utxo);
       const datum = parseAuctionDatum(utxo.output.plutusData!);
-
-      // Build transaction to withdraw outbid amount
-
-      // Redeemer for withdraw action
-      const redeemer = makeWithdrawRedeemer();
+      const redeemer = mConStr0([2]);
 
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
-
+      if (!bidderUtxos) return;
       txBuilder
+        .setNetwork("preview")
         .spendingPlutusScriptV3()
-        .txIn(utxo.input.txHash, utxo.input.outputIndex)
-        .txInInlineDatumPresent()
-        .txInRedeemerValue(redeemer)
+        .txIn(
+          utxo.input.txHash,
+          utxo.input.outputIndex
+        )
+        .spendingReferenceTxInInlineDatumPresent()
+        .spendingReferenceTxInRedeemerValue(redeemer)
         .txInScript(scriptCbor)
-        .txInCollateral(utxo.input.txHash, utxo.input.outputIndex) // You probably want to add a real collateral from wallet utxos here instead
+        .txInCollateral(
+          bidderUtxo[0].input.txHash,
+          bidderUtxo[0].input.outputIndex
+        )
         .txOut(addr, [{ unit: 'lovelace', quantity: datum.highestBid.toString() }]);
 
       const unsignedTx = await txBuilder
         .changeAddress(addr)
+        .selectUtxosFrom(bidderUtxo)
         .requiredSignerHash(bidderPubKeyHash)
         .complete();
 
       const signedTx = await wallet.signTx(unsignedTx, true);
       const txHash = await wallet.submitTx(signedTx);
-      alert(`Withdraw successful: ${txHash}`);
+      setTxHash(txHash);
+      //alert(`Withdraw successful: ${txHash}`);
 
       setSelectedAuction(null);
       fetchAuctions();
@@ -168,37 +197,37 @@ export default function AuctionWithdraw() {
 
   return (
     <div className="max-w-md mx-auto p-4">
+      {!walletAddress && <p>Connect your wallet to see your outbid auctions.</p>}
 
-  {!walletAddress && <p>Connect your wallet to see your outbid auctions.</p>}
+      {walletAddress && auctions.length === 0 && (
+        <p className="text-center text-gray-500 mt-6">No active outbid auctions found.</p>
+      )}
 
-  {walletAddress && auctions.length === 0 && (
-    <p className="text-center text-gray-500 mt-6">No active outbid auctions found.</p>
-  )}
+      <ul>
+        {auctions.map((auc, idx) => (
+          <li
+            key={idx}
+            onClick={() => setSelectedAuction(auc)}
+            className={`cursor-pointer p-2 mb-2 border rounded
+              ${selectedAuction === auc ? 'border-blue-500' : 'border-gray-300'}
+              ${auc.isHighestBid ? 'bg-green-200' : 'bg-red-200'}
+            `}
+          >
+            <div><strong>Object:</strong> {auc.object}</div>
+            <div><strong>Remaining time:</strong> {getTimeRemaining(auc.deadline)}</div>
+            <div><strong>Bid:</strong> {auc.currentBid.toString()} lovelace</div>
+          </li>
+        ))}
+      </ul>
 
-  <ul>
-    {auctions.map((auc, idx) => (
-      <li
-        key={idx}
-        onClick={() => setSelectedAuction(auc)}
-        className={`cursor-pointer p-2 mb-2 border rounded
-          ${selectedAuction === auc ? 'border-blue-500' : 'border-gray-300'}
-          ${auc.isHighestBid ? 'bg-green-200' : 'bg-red-200'}
-        `}
+      <button
+        className="mt-4 w-full bg-blue-600 text-white p-2 rounded disabled:opacity-50"
+        disabled={!selectedAuction || loading}
+        onClick={handleWithdraw}
       >
-        <div><strong>Object:</strong> {auc.object}</div>
-        <div><strong>Remaining time:</strong> {getTimeRemaining(auc.deadline)}</div>
-        <div><strong>Bid:</strong> {auc.currentBid.toString()} lovelace</div>
-      </li>
-    ))}
-  </ul>
-
-  <button
-    className="mt-4 w-full bg-blue-600 text-white p-2 rounded disabled:opacity-50"
-    disabled={!selectedAuction || loading}
-    onClick={handleWithdraw}
-  >
-    {loading ? 'Withdrawing...' : 'Withdraw'}
-  </button>
-</div>
+        {loading ? 'Withdrawing...' : 'Withdraw'}
+      </button>
+      {txHash && <p className="text-green-600 mt-2">Withdraw successful! Tx Hash: {txHash}</p>}
+    </div>
   );
 }
