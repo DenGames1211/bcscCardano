@@ -2,7 +2,5 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/auction-seller": "pages/auction-seller.js",
-  "/auction-bidder": "pages/auction-bidder.js",
-  "/": "pages/index.js"
+  "/bet": "pages/bet.js"
 }

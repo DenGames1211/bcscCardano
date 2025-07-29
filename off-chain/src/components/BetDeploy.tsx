@@ -1,7 +1,7 @@
 
 
 
-import React, { FormEvent, useState } from 'react';
+import React, { FormEvent, useEffect, useState } from 'react';
 import {
   Asset,
   BlockfrostProvider,
@@ -18,6 +18,9 @@ const ONE_MINUTE_MS = 1 * 60 * 1000;
 const TWO_MINUTES_MS = 2 * 60 * 1000;
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
+const oracleMnemonic = ["post", "crash", "deer", "idle", "churn", "cause", "six", "chuckle", "priority", "truth", "tiger", "disorder", "devote", "tree", "clerk", "planet", "glance", "jewel", "start", "erode", "public", "umbrella", "aware", "stamp"];
+
+
 export default function BetDeploy() {
   const [oracle, setOracle] = useState('');
   const [player1, setPlayer1] = useState('');
@@ -26,15 +29,41 @@ export default function BetDeploy() {
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string>('');
 
+  useEffect(() => {
+    (async () => {
+      const p1wallet = await getBrowserWallet();
+      const [p1addr] = await p1wallet.getUsedAddresses();
+      setPlayer1(p1addr);
+
+      // oracle wallet (Mesh Wallet)
+      const oracleWallet = new MeshWallet({
+        networkId: 0,
+        fetcher: provider,
+        submitter: provider,
+        key: {
+          type: 'mnemonic',
+          words: oracleMnemonic,
+        },
+      });
+      await oracleWallet.init();
+
+      const [oracleAddr] = await oracleWallet.getUsedAddresses();
+      setOracle(oracleAddr);
+    })();
+  }, []);
+
   //const oracleMnemonic = ["post","crash","deer","idle","churn","cause","six","chuckle","priority","truth","tiger","disorder","devote","tree","clerk","planet","glance","jewel","start","erode","public","umbrella","aware","stamp"];
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
 
-    const wallet = await getBrowserWallet();
-    const utxos = await wallet.getUtxos();
-    const [addr] = await wallet.getUsedAddresses();
+
+    // player 1 wallet (User Browser Wallet)
+    const p1wallet = await getBrowserWallet();
+    const p1utxos = await p1wallet.getUtxos();
+    const [p1addr] = await p1wallet.getUsedAddresses();
+    setPlayer1(p1addr);
 
 
     const lovelace = BigInt(wager);
@@ -44,33 +73,35 @@ export default function BetDeploy() {
       // 2) build the datum
       const datum = makeBetDatum(
         deserializeAddress(oracle).pubKeyHash,
-        0n, // start wager
+        0n, // start wager (must be 0)
         deserializeAddress(player1).pubKeyHash,
-        deserializeAddress(player2).pubKeyHash,
+        " ", // no need to add player 2 at deploy time 
         1n, // dummy deadline
         false // not yet joined
       );
 
       // 3) prepare assets + scrip
+      // these are for the creation of the contract
       const assets: Asset[] = [{ unit: 'lovelace', quantity: "2000000" }];
       const { scriptAddr, scriptCbor } = getScript();
       const datumHash = resolveDataHash(datum);
 
       // 4) build, sign and submit
       const txBuilder = getTxBuilder()
-        
-        .txOut(scriptAddr, [{ unit: 'lovelace', quantity: '2000000' }]) // manda 2 ADA al contratto
-        .txOutDatumHashValue(datum)
-        .changeAddress(addr) // il tuo indirizzo (wallet mittente)
-        .selectUtxosFrom(utxos) // UTxO da cui prendi i fondi
-        .txInCollateral(utxos[0].input.txHash, utxos[0].input.outputIndex); 
+        .setNetwork("preview")
+        .txOut(
+          scriptAddr,
+          assets,
+        )
+        .txOutInlineDatumValue(datum)
+        .selectUtxosFrom(p1utxos)
+        .changeAddress(p1addr)
+
 
       await txBuilder.complete();
-
-
-      const signed = await wallet.signTx(txBuilder.txHex);
+      const signed = await p1wallet.signTx(txBuilder.txHex);
       console.log("deploy transaction: ", txBuilder);
-      const hash = await wallet.submitTx(signed);
+      const hash = await p1wallet.submitTx(signed);
 
 
       setTxHash(hash);
@@ -108,33 +139,8 @@ export default function BetDeploy() {
         <input
           type="text"
           value={player1}
+          readOnly
           onChange={(e) => setPlayer1(e.target.value)}
-          required
-          className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Player 2 Address */}
-      <div className="flex flex-col">
-        <label className="mb-1 font-medium text-gray-700">Player 2 Address</label>
-        <input
-          type="text"
-          value={player2}
-          onChange={(e) => setPlayer2(e.target.value)}
-          required
-          className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Wager */}
-      <div className="flex flex-col">
-        <label className="mb-1 font-medium text-gray-700">Wager (in Lovelace)</label>
-        <input
-          type="number"
-          min="1000000"
-          step="100000"
-          value={wager}
-          onChange={(e) => setWager(e.target.value)}
           required
           className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -150,7 +156,7 @@ export default function BetDeploy() {
 
       {txHash && (
         <p className="text-green-600 text-sm break-all">
-          TX Hash: <code>{txHash}</code>
+          Deploy OK - TXHash: <code>{txHash}</code>
         </p>
       )}
     </form>

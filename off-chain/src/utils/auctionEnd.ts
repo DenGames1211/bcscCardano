@@ -3,22 +3,14 @@ import {
   deserializeAddress,
   mConStr0,
   MeshTxBuilder,
-  UTxO,
 } from '@meshsdk/core';
 import {
-  AuctionStatus,
   makeAuctionDatum,
-  makeEndRedeemer,
   parseAuctionDatum,
 } from '@/utils/auction';
 import { getBrowserWallet, getAuctionScript } from '@/utils/common';
-import { Address } from '@emurgo/cardano-serialization-lib-asmjs';
 
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
-
-/**
- * Helper per convertire un PubKeyHash in indirizzo bech32 su mainnet.
- */
 
 
 export async function handleEndAuction(
@@ -29,7 +21,6 @@ export async function handleEndAuction(
   const wallet = await getBrowserWallet();
   const [addr] = await wallet.getUsedAddresses();
   const sellerHash = deserializeAddress(seller).pubKeyHash;
-  const sellerUtxos = await wallet.getUsedUTxOs();
   const callerHash = deserializeAddress(addr).pubKeyHash;
   const sellerPKH = deserializeAddress(seller).pubKeyHash;
   if (callerHash !== sellerHash) {

@@ -11,11 +11,13 @@ import {
   Budget,
   serializeData,
   mConStr,
+  mConStr0,
 } from '@meshsdk/core';
 import {
   getBrowserWallet,
   getScript,
   getUtxoByTxHash,
+  getAssetUtxo,
 } from '@/utils/common';
 import { makeBetDatum, makeJoinRedeemer } from '@/utils/bet';
 import { betWin } from '@/utils/betWin';
@@ -37,7 +39,46 @@ export default function BetJoin() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [deployTxHash, setDeployTxHash] = useState('');
 
-  const oracleMnemonic = ["post","crash","deer","idle","churn","cause","six","chuckle","priority","truth","tiger","disorder","devote","tree","clerk","planet","glance","jewel","start","erode","public","umbrella","aware","stamp"];
+  const oracleMnemonic = ["post", "crash", "deer", "idle", "churn", "cause", "six", "chuckle", "priority", "truth", "tiger", "disorder", "devote", "tree", "clerk", "planet", "glance", "jewel", "start", "erode", "public", "umbrella", "aware", "stamp"];
+  const p2Mnemonic = ["perfect", "pass", "you", "fly", "auto", "soldier", "sauce", "stuff", "reduce", "finish", "carbon", "clerk", "tent", "expect", "surge", "wolf", "busy", "section", "sweet", "brisk", "dove", "seven", "taxi", "kidney"];
+  useEffect(() => {
+    (async () => {
+      const p1wallet = await getBrowserWallet();
+      const [p1addr] = await p1wallet.getUsedAddresses();
+      setPlayer1(p1addr);
+
+      // oracle wallet (Mesh Wallet)
+      const oracleWallet = new MeshWallet({
+        networkId: 0,
+        fetcher: provider,
+        submitter: provider,
+        key: {
+          type: 'mnemonic',
+          words: oracleMnemonic,
+        },
+      });
+      await oracleWallet.init();
+
+      const [oracleAddr] = await oracleWallet.getUsedAddresses();
+      setOracle(oracleAddr);
+
+      // player 2 waòòet (MESH Wallet)
+      const p2wallet = new MeshWallet({
+        networkId: 0,
+        fetcher: provider,
+        submitter: provider,
+        key: {
+          type: 'mnemonic',
+          words: p2Mnemonic,
+        },
+      });
+      await p2wallet.init();
+
+      const [p2Addr] = await p2wallet.getUsedAddresses();
+      setPlayer2(p2Addr);
+    })();
+  }, []);
+
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,13 +105,7 @@ export default function BetJoin() {
       const lovelace = BigInt(wager);
       const deadline = BigInt(Date.now() + TWO_MINUTES_MS);
 
-      const redeemer2 = {
-        constructor: 0,
-        fields: [{int: 4000000}],
-      };
-
-      const redeemer3 = makeJoinRedeemer(lovelace);
-      const redeemer = mConStr(0, [4000000])
+      const redeemer = mConStr0([0]); // join redeemer
       //console.log("REDEEMER: ", JSON.stringify(redeemer, null, 2));
 
 
@@ -84,53 +119,77 @@ export default function BetJoin() {
       const p2PKH = deserializeAddress(player2).pubKeyHash;
       const { scriptCbor, scriptAddr } = getScript();
 
-      const datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
-      const prev_datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, false);
-      const assets: Asset[] = [{ unit: 'lovelace', quantity: (BigInt(wager) + BigInt(wager)).toString() }];
-      const p1assets: Asset[] = [{ unit: 'lovelace', quantity: "1400000"}]
-      const deployDatum = makeBetDatum(
-              "",
-              0n,
-              "",
-              "",
-              0n,
-              false,
-            );
-      console.log("deplot tx hash: ", deployTxHash);
-      const utxo = await getUtxoByTxHash(deployTxHash);
-      console.log("deploy utxos");
+      const datum = makeBetDatum(
+        oraclePKH,
+        lovelace,
+        p1PKH,
+        p2PKH,
+        deadline,
+        true
+      );
+      const totalWager = BigInt(wager) * 2n;
+      const assets = [{ unit: 'lovelace', quantity: totalWager.toString() }];
+      const p2Assets = [{ unit: 'lovelace', quantity: wager }];
 
-      const datumHash = resolveDataHash(datum);
-      console.log("deploy datum hash: ", resolveDataHash(prev_datum));
-      const originalDatumHash = String(utxo.output.dataHash);
-      console.log("script: ", scriptCbor);
-      console.log()
+      const deployDatum = makeBetDatum(
+        oraclePKH,
+        0n,
+        p1PKH,
+        "",
+        1n,
+        false,
+      );
+
+
+      console.log("deploy tx hash: ", deployTxHash);
+      const utxo = await getUtxoByTxHash(deployTxHash);
+
+      const p2Utxo = p2Utxos.find(u => BigInt(u.output.amount[0].quantity) >= lovelace);
+      if (!p2Utxo) throw new Error("Player 2 has no valid UTxO");
+
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
       const unsignedTx = await txBuilder
-      .spendingPlutusScriptV3()
-      .txIn(
-        utxo.input.txHash,
-        utxo.input.outputIndex,
-        utxo.output.amount,
-        //utxo.output.address
-      )
-      //.txInInlineDatumPresent()
-      .txInDatumValue(deployDatum)
-      //.txInRedeemerValue(redeemer)
-      //.txInRedeemerValue(serializeData(redeemer), "CBOR")
-      .txInScript(scriptCbor)
-      //.txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
-      .txInCollateral(utxos[0].input.txHash, utxos[0].input.outputIndex)
-      .requiredSignerHash(p1PKH)
-      .requiredSignerHash(p2PKH)
-      .txOut(scriptAddr, assets)
-      //.txOut(player1, p1assets)
-      .txOutInlineDatumValue(serializeData(datum), "CBOR")
-      //.txOutDatumHashValue(datum)
-      .changeAddress(player1) // o player2, per fee
-      //.selectUtxosFrom([...utxos, ...p2Utxos]) // per aggiungere la seconda metà
-      .selectUtxosFrom(utxos)
-      .complete();
+        .setNetwork("preview")
+        .spendingPlutusScriptV3()
+        .txIn(
+          utxo.input.txHash,
+          utxo.input.outputIndex,
+          //utxo.output.amount,
+          //scriptAddr
+        )
+
+        .spendingReferenceTxInInlineDatumPresent()
+        .spendingReferenceTxInRedeemerValue(redeemer)
+
+        .txInScript(scriptCbor)
+
+        // Input da player 1
+        //.txIn(utxos[0].input.txHash, utxos[0].input.outputIndex, utxos[0].output.amount)
+
+        // Input da player 2 (per il suo wager)
+        //.txIn(p2Utxo.input.txHash, p2Utxo.input.outputIndex, p2Utxo.output.amount)
+
+        .txInCollateral(
+          utxos[0].input.txHash,
+          utxos[0].input.outputIndex
+        )
+
+        // p1 is sending the total wager to the contract
+        .txOut(scriptAddr, assets)
+        .txOutInlineDatumValue(datum)
+
+        // p2 returns his wager to p1
+        //.txOut(player1, p2Assets)
+
+        .changeAddress(player1)
+
+        // both player must sign the transaction
+        .requiredSignerHash(p1PKH)
+        .requiredSignerHash(p2PKH)
+        // player 1 has to pay the fees
+        .selectUtxosFrom(utxos)
+
+        .complete();
 
       const signedTx = await wallet.signTx(unsignedTx, true);
       const meshWalletSignedTx = await p2wallet.signTx(signedTx, true);
@@ -142,7 +201,7 @@ export default function BetJoin() {
       console.log("p2 hash key: ", p2PKH);
       setStatus('waiting');
 
-      // Avvia il countdown
+      // Countdown start
       const secondsLeft = Math.floor(Number(deadline - BigInt(Date.now())) / 1000);
       setCountdown(secondsLeft);
       const interval = setInterval(() => {

@@ -107,7 +107,6 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
 
       setDatumLoaded(true);
 
-      //console.log(deployUtxos);
 
       const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
@@ -120,7 +119,7 @@ export default function AuctionStart({ object, deadline }: AuctionStartProps) {
           deployUtxos.output.amount,
           scriptAddr
         )
-        //.txInInlineDatumPresent()
+
         .spendingReferenceTxInInlineDatumPresent()
         .spendingReferenceTxInRedeemerValue(redeemer)
 

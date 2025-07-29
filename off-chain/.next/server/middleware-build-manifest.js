@@ -20,15 +20,10 @@ globalThis.__BUILD_MANIFEST = {
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/auction-bidder": [
+    "/bet": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/auction-bidder.js"
-    ],
-    "/auction-seller": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/auction-seller.js"
+      "static/chunks/pages/bet.js"
     ]
   },
   "ampFirstPages": []

@@ -15,9 +15,9 @@ import { applyParamsToScript, resolveDataHash } from "@meshsdk/core-csl";
 import betBlueprint from "@/scripts/bet.plutus.json";
 import auctionBlueprint from "@/scripts/auction.plutus.json";
 import { useWallet } from "@meshsdk/react";
- 
+
 const blockchainProvider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
- 
+
 let _wallet: BrowserWallet | null = null;
 /**
  * Lazily initialize (and cache) a BrowserWallet instance.
@@ -55,7 +55,7 @@ export async function getBrowserWallet(walletName: string = "lace"): Promise<Bro
 
   return _wallet;
 }
- 
+
 export function getScript() {
   const scriptCbor = applyParamsToScript(
     betBlueprint.validators[0].compiledCode,
@@ -65,7 +65,7 @@ export function getScript() {
   const scriptAddr = serializePlutusScript(
     { code: scriptCbor, version: "V3" },
   ).address;
- 
+
   return { scriptCbor, scriptAddr };
 }
 
@@ -78,7 +78,7 @@ export function getAuctionScript() {
   const scriptAddr = serializePlutusScript(
     { code: scriptCbor, version: "V3" },
   ).address;
- 
+
   return { scriptCbor, scriptAddr };
 }
 
@@ -93,7 +93,7 @@ export function getScript2() {
   const scriptAddr = resolvePlutusScriptAddress(script, 0);
   return { script, scriptAddr };
 }
- 
+
 // reusable function to get a transaction builder
 export function getTxBuilder() {
   return new MeshTxBuilder({
@@ -101,7 +101,7 @@ export function getTxBuilder() {
     submitter: blockchainProvider,
   });
 }
- 
+
 // reusable function to get a UTxO by transaction hash
 export async function getUtxoByTxHash(txHash: string): Promise<UTxO> {
   const utxos = await blockchainProvider.fetchUTxOs(txHash);
@@ -166,13 +166,10 @@ export async function getAssetUtxo({
     scriptAddress,
     asset,
   );
-  console.log("UTxOs at script:", utxos);
+  //console.log("UTxOs at script:", utxos);
   const dataHash = resolveDataHash(datum);
-  //const dataHash = "c34b76230b9670a097bdbfc9e85ea5f7e02dbc0399806594a3c62ec7fd93402a"
-  console.log("Looking for dataHash:", resolveDataHash(datum));
-  //dataHash = "78769eb5e5c09a9f5b6e6558bc1527d79a20d428f32ce78c404d0ddbb3bbcc4f"
-  //console.log("script addr used: ", scriptAddress)
- 
+  //console.log("Looking for dataHash:", resolveDataHash(datum));
+
 
   let utxo = utxos.find((utxo: any) => {
     return utxo.output.dataHash == dataHash;
