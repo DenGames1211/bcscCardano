@@ -3,7 +3,7 @@
 
 import { mBool, mConStr, mConStr0, BlockfrostProvider, MeshWallet, Integer, mConStr1, mConStr2, VerificationKey } from "@meshsdk/core";
 import type { BetDatum } from "@/utils/types";
-import {Mint} from '@meshsdk/core';
+import { Mint } from '@meshsdk/core';
 
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -25,21 +25,23 @@ export function makeBetDatum(
   player1: string,
   player2: string,
   deadline: bigint,
-  isJoined: boolean = false
+  isJoined: bigint,
+  //winner: string,
 ): BetDatum {
   // Mesh-SDK’s Data.Constr(index, fields) builds a Plutus‐style constructor.
   // Bool False is index 0, True is index 1, with no fields.
-  const joinedFlag = mConStr(isJoined ? 1: 0, []);
+  //const joinedFlag = mConStr(isJoined ? 1: 0, []);
 
-  
-  
+
+
   return mConStr0([
     oracle,
     wager,
     player1,
     player2,
     deadline,
-    joinedFlag,
+    isJoined,
+    //winner,
   ]);
 }
 

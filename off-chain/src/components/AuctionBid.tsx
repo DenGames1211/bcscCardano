@@ -45,7 +45,7 @@ export default function AuctionBid() {
         if (!datumHex) continue;
         const parsed = parseAuctionDatum(datumHex);
         if (parsed.status !== 1n && parsed.status != 2n) continue;
-        //if(parsed.deadline < Date.now()) continue;
+        if (parsed.deadline < Date.now()) continue;
         //if (parsed.object != "prova") continue;
 
         startedAuctions.push({
@@ -100,7 +100,7 @@ export default function AuctionBid() {
         parsed.seller,
         parsed.object,
         parsed.deadline!,
-        1n, // status STARTED again!!
+        1n, // status STARTED again!
         bidderPubKeyHash,
         bidBigInt
       );
@@ -121,8 +121,6 @@ export default function AuctionBid() {
         .txIn(
           auctionUtxo.input.txHash,
           auctionUtxo.input.outputIndex,
-          //auctionUtxo.output.amount,
-          //scriptAddr,
         )
         .spendingReferenceTxInInlineDatumPresent()
         .spendingReferenceTxInRedeemerValue(redeemer)
@@ -135,26 +133,6 @@ export default function AuctionBid() {
         .txOut(scriptAddr, assets)
         .txOutInlineDatumValue(newDatum);
 
-      //.txOut()
-
-      //if (parsed.highestBid! > bidBigInt) {
-      //  const outbidDatum = makeAuctionDatum(
-      //    parsed.seller,
-      //    parsed.object,
-      //    parsed.deadline!,
-      //    3n, // status OUTBID
-      //   parsed.highestBidder,
-      //    parsed.highestBid!
-      //  );
-
-      //  const outbidAssets: Asset[] = [
-      //    { unit: 'lovelace', quantity: parsed.highestBid!.toString() },
-      //  ];
-
-      //  txBuilder
-      //    .txOut(scriptAddr, outbidAssets)
-      //    .txOutInlineDatumValue(outbidDatum);
-      //}
 
       const unsignedTx = await txBuilder
         .changeAddress(addr)

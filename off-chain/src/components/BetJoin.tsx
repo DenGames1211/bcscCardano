@@ -23,18 +23,21 @@ import { makeBetDatum, makeJoinRedeemer } from '@/utils/bet';
 import { betWin } from '@/utils/betWin';
 import { betTimeout } from '@/utils/betTimeout';
 
-const TWO_MINUTES_MS = 2 * 60 * 1000;
+const TWO_MINUTES_MS = 2 * 60 * 1000 + 30 * 1000;
 const provider = new BlockfrostProvider(process.env.NEXT_PUBLIC_BLOCKFROST_KEY!);
 
 export default function BetJoin() {
   const [oracle, setOracle] = useState('');
   const [player1, setPlayer1] = useState('');
   const [player2, setPlayer2] = useState('');
-  const [wager, setWager] = useState('1000000');
+  const [wager, setWager] = useState('10000000');
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState('');
+  const [timeoutTxHash, setTimeoutTxHash] = useState("");
+  const [winTxHash, setWinTxHash] = useState("");
   const [status, setStatus] = useState<'idle' | 'waiting' | 'done'>('idle');
   const [winnerMsg, setWinnerMsg] = useState<string>('');
+  const [timeoutMsg, setTimeoutMsg] = useState<string>('');
   const [borderColor, setBorderColor] = useState<string>('');
   const [countdown, setCountdown] = useState<number | null>(null);
   const [deployTxHash, setDeployTxHash] = useState('');
@@ -62,7 +65,7 @@ export default function BetJoin() {
       const [oracleAddr] = await oracleWallet.getUsedAddresses();
       setOracle(oracleAddr);
 
-      // player 2 waòòet (MESH Wallet)
+      // player 2 wallet (MESH Wallet)
       const p2wallet = new MeshWallet({
         networkId: 0,
         fetcher: provider,
@@ -105,7 +108,7 @@ export default function BetJoin() {
       const lovelace = BigInt(wager);
       const deadline = BigInt(Date.now() + TWO_MINUTES_MS);
 
-      const redeemer = mConStr0([0]); // join redeemer
+      const redeemer = mConStr0([0, ""]); // join redeemer
       //console.log("REDEEMER: ", JSON.stringify(redeemer, null, 2));
 
 
@@ -125,19 +128,22 @@ export default function BetJoin() {
         p1PKH,
         p2PKH,
         deadline,
-        true
+        1n,
+        //"00000000000000000000000000000000000000000000000000000000",
       );
+      console.log("DATUM:", datum);
       const totalWager = BigInt(wager) * 2n;
       const assets = [{ unit: 'lovelace', quantity: totalWager.toString() }];
       const p2Assets = [{ unit: 'lovelace', quantity: wager }];
 
       const deployDatum = makeBetDatum(
         oraclePKH,
-        0n,
+        lovelace,
         p1PKH,
-        "",
+        "00000000000000000000000000000000000000000000000000000000",
         1n,
-        false,
+        0n,
+        //"00000000000000000000000000000000000000000000000000000000",
       );
 
 
@@ -161,39 +167,32 @@ export default function BetJoin() {
         .spendingReferenceTxInInlineDatumPresent()
         .spendingReferenceTxInRedeemerValue(redeemer)
 
+
         .txInScript(scriptCbor)
-
-        // Input da player 1
-        //.txIn(utxos[0].input.txHash, utxos[0].input.outputIndex, utxos[0].output.amount)
-
-        // Input da player 2 (per il suo wager)
-        //.txIn(p2Utxo.input.txHash, p2Utxo.input.outputIndex, p2Utxo.output.amount)
-
         .txInCollateral(
-          utxos[0].input.txHash,
-          utxos[0].input.outputIndex
+          p2Utxos[0].input.txHash,
+          p2Utxos[0].input.outputIndex,
         )
 
-        // p1 is sending the total wager to the contract
+        // p2 is sending the total wager to the contract
         .txOut(scriptAddr, assets)
         .txOutInlineDatumValue(datum)
 
-        // p2 returns his wager to p1
-        //.txOut(player1, p2Assets)
-
-        .changeAddress(player1)
+        // player 2 receive the change (wager spent by player 1 at deploy time)
+        .changeAddress(player2)
 
         // both player must sign the transaction
         .requiredSignerHash(p1PKH)
         .requiredSignerHash(p2PKH)
-        // player 1 has to pay the fees
-        .selectUtxosFrom(utxos)
+        // player 2 has to pay the fees
+        .selectUtxosFrom(p2Utxos)
 
         .complete();
 
-      const signedTx = await wallet.signTx(unsignedTx, true);
-      const meshWalletSignedTx = await p2wallet.signTx(signedTx, true);
-      const joinTxHash = await wallet.submitTx(meshWalletSignedTx);
+      const signedTx = await p2wallet.signTx(unsignedTx, true);
+      const meshWalletSignedTx = await wallet.signTx(signedTx, true);
+      const joinTxHash = await p2wallet.submitTx(meshWalletSignedTx);
+      //const joinTxHash = await wallet.submitTx(signedTx);
       setTxHash(joinTxHash || 'Transaction sent!');
 
       console.log("oracle hash key: ", oraclePKH);
@@ -214,7 +213,8 @@ export default function BetJoin() {
         });
       }, 1000);
 
-      const noWinner = Math.random() < 0.2;
+      //const noWinner = Math.random() < 0.2;
+      const noWinner = true;
 
 
       if (noWinner) {
@@ -229,19 +229,25 @@ export default function BetJoin() {
             txHash: joinTxHash,
           });
 
+
+          setTimeoutMsg('No winner: the oracle did not decide before the deadline.');
+          //setWinnerMsg('No winners: the Oracle has not decided a winner before the deadline.');
+          setBorderColor('border-red-600');
+          setStatus('done');
+
+          console.log(resultTx);
+
           if (resultTx != null) {
-            const unsignedTx = resultTx.toString();
+
+            const unsignedTx = (resultTx.unsignedTx == null ? "" : resultTx.unsignedTx);
             const signedTx = await wallet.signTx(unsignedTx, true);
             const meshWalletSignedTx = await p2wallet.signTx(signedTx, true);
             const txHash = await wallet.submitTx(meshWalletSignedTx);
-            setTxHash(txHash || 'Transaction sent!');
+            setTimeoutTxHash(txHash || 'Transaction sent!');
           } else {
-            setTxHash('Transaction not sent');
+            setTimeoutTxHash('Transaction not sent');
           }
 
-          setWinnerMsg('Nessun vincitore.');
-          setBorderColor('border-red-600');
-          setStatus('done');
         }, TWO_MINUTES_MS + 1);
       } else {
         const delayMs = Math.floor(Math.random() * (TWO_MINUTES_MS - 10000)) + 5000;
@@ -263,8 +269,9 @@ export default function BetJoin() {
             setWinnerMsg('Nessun vincitore.');
             setBorderColor('border-red-600');
           } else {
-            setWinnerMsg(`Il vincitore è: ${result.winner}`);
+            setWinnerMsg(`The winner is: ${result.winner}!`);
             setBorderColor('border-green-600');
+            setWinTxHash(result.txHash == null ? "" : result.txHash);
           }
           setStatus('done');
         }, delayMs);
@@ -353,20 +360,36 @@ export default function BetJoin() {
 
       {status === 'waiting' && (
         <div className="text-orange-600 text-lg font-semibold flex flex-col gap-2">
-          <p>In attesa che l'oracle stabilisca il vincitore…</p>
+          <p>Waiting for the oracle to decide the winner…</p>
           {countdown !== null && (
-            <p>⏳ Tempo rimanente: {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}</p>
+            <p>⏳ Time left: {Math.floor(countdown / 60)}:{String(countdown % 60).padStart(2, '0')}</p>
           )}
         </div>
       )}
 
       {status === 'done' && (
-        <p className="text-xl font-bold">{winnerMsg}</p>
+        <p className="text-green-700 text-xl font-bold">{winnerMsg}</p>
+      )}
+
+      {timeoutMsg && (
+        <p className="text-red-600 text-sm font-semibold">{timeoutMsg}</p>
       )}
 
       {txHash && (
         <p className="text-green-600 text-sm break-all">
-          TX Hash: <code>{txHash}</code>
+          Join successful - TXHash: <code>{txHash}</code>
+        </p>
+      )}
+
+      {timeoutTxHash && (
+        <p className="text-green-600 text-sm break-all">
+          Timeout successful - TXHash: <code>{timeoutTxHash}</code>
+        </p>
+      )}
+
+      {winTxHash && (
+        <p className="text-green-600 text-sm break-all">
+          Win successful - TXHash: <code>{winTxHash}</code>
         </p>
       )}
     </form>

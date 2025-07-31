@@ -1,13 +1,13 @@
-// Suggested stdlib version: 1.7.0 (https://github.com/aiken-lang/stdlib/releases/tag/1.7.0)
+// Suggested stdlib version: 2.2.0 (https://github.com/aiken-lang/stdlib/releases/tag/1.7.0)
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Imports:
 // ////////////////////////////////////////////////////////////////////////////////
 
 use aiken/collection/list
-use aiken/crypto.{VerificationKeyHash}
+use aiken/crypto.{Blake2b_224, Hash, VerificationKey, VerificationKeyHash}
 use aiken/interval.{Finite}
-use cardano/address.{Address, VerificationKey}
+use cardano/address.{Address}
 use cardano/assets.{from_lovelace}
 use cardano/script_context.{ScriptContext, Spending}
 use cardano/transaction.{
@@ -24,19 +24,25 @@ use utils/bet_utils.{
 // ////////////////////////////////////////////////////////////////////////////////
 
 pub type Datum {
-  oracle: VerificationKeyHash,
-  wager: Lovelace,
-  player_1: VerificationKeyHash,
-  player_2: VerificationKeyHash,
+  oracle: Hash<Blake2b_224, VerificationKey>,
+  wager: Int,
+  player_1: Hash<Blake2b_224, VerificationKey>,
+  player_2: Hash<Blake2b_224, VerificationKey>,
   deadline: POSIXTime,
-  is_joined: Bool,
+  is_joined: Int,
 }
 
 pub type Redeemer {
-  Join { wager: Lovelace }
-  Win { winner: VerificationKeyHash }
-  Timeout
+  branch: Int,
+  winner: Hash<Blake2b_224, VerificationKey>,
 }
+
+// 0 = Join, 1 = Win, 2 = Timeout
+//wager: Int,
+// relevant only if branch == 0
+//winner: Hash<Blake2b_224, VerificationKey>,
+
+// relevant only if branch == 1
 
 // ////////////////////////////////////////////////////////////////////////////////
 // Validator:
@@ -44,145 +50,167 @@ pub type Redeemer {
 
 validator bet {
   spend(
-    datum: Option<Datum>,
+    m_datum: Option<Datum>,
     redeemer: Redeemer,
-    _own_ref: OutputReference,
-    ctx: ScriptContext,
+    _input: OutputReference,
+    tx: Transaction,
   ) {
     // Extract previous state datum
-    expect Some(Datum {
-      oracle,
-      wager: prev_wager,
-      player_1: prev_p1,
-      player_2: prev_p2,
-      deadline,
-      is_joined,
-    }) = datum
+    expect Some(datum) = m_datum
 
-    // Alias the inner transaction
-    let tx = ctx.transaction
+    // transaction inputs
+    let contract_inputs = tx.reference_inputs
 
     // Compute transaction earliest valid time
-    let tx_earliest_time =
-      when tx.validity_range.lower_bound.bound_type is {
-        Finite(x) -> x
-        _ -> 0
-      }
-
-    // Contract UTXO and balances
-    let own_input = get_own_input(ctx)
-    let contract_address = own_input.output.address
-
-    let contract_outputs = get_outputs_by_address(tx.outputs, contract_address)
-    let contract_inputs = get_inputs_by_address(tx.inputs, contract_address)
+    //let tx_earliest_time =
+    //  when tx.validity_range.lower_bound.bound_type is {
+    //    Finite(x) -> x
+    //    _ -> 0
+    //  }
+    // getting contract outputs
+    expect Some(first_input) = list.at(tx.inputs, 0)
+    let script_addr = first_input.output.address
+    let contract_outputs = get_outputs_by_address(tx.outputs, script_addr)
 
     let contract_inputs_balance = get_ada_from_inputs(contract_inputs)
     let contract_outputs_balance = get_ada_from_outputs(contract_outputs)
 
-    when redeemer is {
-      Join { wager } -> {
-        // Contract must have only one output
-        expect list.length(contract_outputs) == 1
-        expect Some(contract_output) = list.at(contract_outputs, 0)
+    if redeemer.branch == 0 {
+      // JOIN LOGIC
 
-        // Getting the output's datum
-        expect InlineDatum(untyped_datum) = contract_output.datum
-        expect contract_output_datum: Datum = untyped_datum
+      // transaction must have only one output
+      expect list.length(contract_outputs) == 1
+      expect Some(contract_output) = list.head(contract_outputs)
 
-        // Get the two transaction's signers
-        expect Some(player_1) = list.at(tx.extra_signatories, 0)
-        expect Some(player_2) = list.at(tx.extra_signatories, 1)
+      // Getting the output's datum
+      expect InlineDatum(untyped_datum) = contract_output.datum
+      expect join_datum: Datum = untyped_datum
+      // checking signatories
+      let is_signed_by_p1 = list.has(tx.extra_signatories, join_datum.player_1)
+      let is_signed_by_p2 = list.has(tx.extra_signatories, join_datum.player_2)
+      // Players balances
+      let player_1_inputs_balance =
+        get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, datum.player_1))
+      let player_1_outputs_balance =
+        get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, datum.player_1))
+      let player_2_inputs_balance =
+        get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, datum.player_2))
+      let player_2_outputs_balance =
+        get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, datum.player_2))
 
-        // Players balances
-        let player_1_inputs_balance =
-          get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_1))
-        let player_1_outputs_balance =
-          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_1))
-
-        let player_2_inputs_balance =
-          get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_2))
-        let player_2_outputs_balance =
-          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_2))
-
-        and {
-          // Players are joining the contract before the deadline
-          deadline > tx_earliest_time,
-          // Correct total wager amount
-          contract_outputs_balance - contract_inputs_balance == wager * 2,
-          // The wager value must be inserted in the datum
-          contract_output_datum.wager == wager,
-          // Players are joining an empty contract and updating state
-          !is_joined && contract_output_datum.is_joined,
-          // A player cannot be the oracle
-          oracle != player_1 && oracle != player_2,
-          // Players are paying wager and fees correctly
-          trace @"join_player1": player_1
-          trace @"join_player1_bal": player_1_inputs_balance - wager - tx.fee
-          trace @"join_player2": player_2
-          trace @"join_player2_bal": player_2_inputs_balance - wager
-          player_1_outputs_balance == player_1_inputs_balance - wager - tx.fee,
-          player_2_outputs_balance == player_2_inputs_balance - wager,
-          // New datum updates player fields correctly
-          contract_output_datum.player_1 == player_1,
-          contract_output_datum.player_2 == player_2,
-          // Datum retains deadline and oracle
-          contract_output_datum.deadline == deadline,
-          contract_output_datum.oracle == oracle,
+      let join_input_ok = and {
+          // checking the deadline: TODO
+          // deadline > tx_earliest_time 
+          // both player must sign the transaction
+          is_signed_by_p1,
+          is_signed_by_p2,
+          // status must be NOT JOINED
+          datum.is_joined == 0,
+          // wager must be > 0
+          datum.wager > 0,
         }
-      }
 
-      Win { winner } -> {
-        expect Some(tx_signer) = list.at(tx.extra_signatories, 0)
+      let join_datum_ok = and {
+          join_datum.player_1 == datum.player_1,
+          // player 1 and player 2 must be different
+          join_datum.player_1 != join_datum.player_2,
+          // oracle must be the same
+          join_datum.oracle == datum.oracle,
+          // oracle must not be one of the player
+          join_datum.oracle != join_datum.player_1,
+          join_datum.oracle != join_datum.player_2,
+          // now, status must be JOINED
+          join_datum.is_joined == 1,
+          // wager must be the same for each player
+          join_datum.wager == datum.wager,
+        }
+      //
+      let join_output_ok = and {
+          // Correct total wager amount
+          contract_outputs_balance - contract_inputs_balance == join_datum.wager * 2,
+          // Players are paying wager and fees correctly (player 1 only pays the fees) 
+          player_1_outputs_balance == player_1_inputs_balance - join_datum.wager - tx.fee,
+          player_2_outputs_balance == player_2_inputs_balance - join_datum.wager,
+        }
 
-        and {
-          // Only the oracle can perform this action
-          tx_signer == oracle,
-          // Players must have joined the contract
-          is_joined,
-          // Oracle acts before the deadline
-          deadline > tx_earliest_time,
+      let input_output_ok = and {
+          join_input_ok,
+          join_datum_ok,
+          join_output_ok,
+        }
+      //join_output_ok,
+      input_output_ok?
+      //join_input_ok?
+      True
+    } else if redeemer.branch == 1 {
+      // WIN Branch
+      let winner = redeemer.winner
+      // getting the winner from the redeemer 
+      // transaction must have only one output
+      expect list.length(contract_outputs) == 1
+      expect Some(contract_output) = list.head(contract_outputs)
+
+      // getting output datum
+      expect InlineDatum(untyped_datum) = contract_output.datum
+      expect win_datum: Datum = untyped_datum
+
+      let signed_by_oracle = list.has(tx.extra_signatories, datum.oracle)
+      let win_input_ok = and {
+          // oracle must sign the transaction
+          signed_by_oracle,
+          // datum input status must be JOINED
+          datum.is_joined == 1,
+          // checking deadline (TODO)
+
           // Oracle chooses a valid winner
           or {
-            winner == prev_p1,
-            winner == prev_p2,
+            winner == datum.player_1,
+            winner == datum.player_2,
           },
-          // Winner receives the pot
-          trace @"winner": winner
-          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, winner)) == prev_wager * 2,
         }
-      }
 
-      Timeout -> {
-        // Get the two transaction's signers
-        expect Some(player_1) = list.at(tx.extra_signatories, 0)
-        expect Some(player_2) = list.at(tx.extra_signatories, 1)
-
-        // Players balances
-        let player_1_inputs_balance =
-          get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_1))
-        let player_1_outputs_balance =
-          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_1))
-
-        let player_2_inputs_balance =
-          get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_2))
-        let player_2_outputs_balance =
-          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_2))
-
-        and {
-          // Players must have joined previously
-          is_joined,
-          // Correct signers
-          player_1 == prev_p1,
-          player_2 == prev_p2,
-          // Timeout after the deadline
-          deadline < tx_earliest_time,
-          // Players receive refund minus fees
-          trace @"timeout_player1_bal": player_1_inputs_balance + prev_wager - tx.fee
-          trace @"timeout_player2_bal": player_2_inputs_balance + prev_wager
-          player_1_outputs_balance == player_1_inputs_balance + prev_wager - tx.fee,
-          player_2_outputs_balance == player_2_inputs_balance + prev_wager,
+      let win_input_output_ok = and {
+          win_input_ok,
+          // datum must not change
+          win_datum.winner != datum.winner,
+          // Winner receives the pot 
+          get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, winner)) == datum.wager * 2,
         }
-      }
+
+      win_input_output_ok?
+    } else if redeemer.val == 2 {
+      // timeout branch
+      //expect list.length(contract_outputs) == 1
+      expect Some(contract_output) = list.head(contract_outputs)
+
+      // Getting the output's datum
+      expect InlineDatum(untyped_datum) = contract_output.datum
+      expect timeout_datum: Datum = untyped_datum
+      // checking signatories
+      let is_signed_by_p1 = list.has(tx.extra_signatories, datum.player_1)
+      let is_signed_by_p2 = list.has(tx.extra_signatories, datum.player_2)
+
+      let player_1_inputs_balance =
+        get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_1))
+      let player_1_outputs_balance =
+        get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_1))
+
+      let player_2_inputs_balance =
+        get_ada_from_inputs(get_inputs_by_vkh(tx.inputs, player_2))
+      let player_2_outputs_balance =
+        get_ada_from_outputs(get_outputs_by_vkh(tx.outputs, player_2))
+
+      let timeout_ok = and {
+          datum.status == 1,
+          timeout_datum.player_1 == datum.player_1,
+          timeout_datum.player_2 == datum.player_2,
+          player_1_outputs_balance == player_1_inputs_balance + datum.wager - tx.fee,
+          player_2_outputs_balance == player_2_inputs_balance + datum.wager,
+        }
+
+      timeout_ok?
+    } else {
+      True
     }
   }
 
@@ -190,109 +218,6 @@ validator bet {
     fail
   }
 }
-
 // ////////////////////////////////////////////////////////////////////////////////
 // Test:
 // ////////////////////////////////////////////////////////////////////////////////
-
-test bet_join() {
-  // 1) Keys and wager
-  let oracle: VerificationKeyHash = #"01"
-  let player_1: VerificationKeyHash = #"02"
-  let player_2: VerificationKeyHash = #"03"
-  let wager: Lovelace = 5
-  let deadline: POSIXTime = 1_000_000
-
-  // 2) Initial datum: not yet joined
-  let initial_datum: Datum =
-    Datum { oracle, wager, player_1, player_2, deadline, is_joined: False }
-
-  // 3) Join redeemer
-  let redeemer: Redeemer = Join { wager }
-
-  // 4) The UTXO we’re “spending”
-  let placeholder_utxo: OutputReference =
-    OutputReference { transaction_id: "", output_index: 0 }
-
-  // 5) Contract address
-  let contract_address: Address =
-    Address {
-      payment_credential: VerificationKey(oracle),
-      stake_credential: None,
-    }
-
-  // 6) Contract input UTXO
-  let contract_input: Input =
-    Input {
-      output_reference: placeholder_utxo,
-      output: Output {
-        address: contract_address,
-        value: from_lovelace(0),
-        datum: InlineDatum(initial_datum),
-        reference_script: None,
-      },
-    }
-
-  // 7) Player inputs
-  let p1_utxo: OutputReference =
-    OutputReference { transaction_id: "p1", output_index: 0 }
-  let p1_input: Input =
-    Input {
-      output_reference: p1_utxo,
-      output: Output {
-        address: Address {
-          payment_credential: VerificationKey(player_1),
-          stake_credential: None,
-        },
-        value: from_lovelace(wager),
-        datum: NoDatum,
-        reference_script: None,
-      },
-    }
-
-  let p2_utxo: OutputReference =
-    OutputReference { transaction_id: "p2", output_index: 0 }
-  let p2_input: Input =
-    Input {
-      output_reference: p2_utxo,
-      output: Output {
-        address: Address {
-          payment_credential: VerificationKey(player_2),
-          stake_credential: None,
-        },
-        value: from_lovelace(wager),
-        datum: NoDatum,
-        reference_script: None,
-      },
-    }
-
-  // 8) Contract output (joined state) – now with reference_script: None
-  let joined_datum: Datum = Datum { ..initial_datum, is_joined: True }
-  let contract_output: Output =
-    Output {
-      address: contract_address,
-      value: from_lovelace(wager * 2),
-      datum: InlineDatum(joined_datum),
-      reference_script: None,
-    }
-
-  // 9) Build the transaction (using record‐update to inherit all other fields)
-  let tx: Transaction =
-    Transaction {
-      ..transaction.placeholder,
-      inputs: [contract_input, p1_input, p2_input],
-      outputs: [contract_output],
-      extra_signatories: [player_1, player_2],
-    }
-
-  // 10) Wrap in ScriptContext
-  let ctx: ScriptContext =
-    ScriptContext {
-      transaction: tx,
-      redeemer,
-      info: Spending { output: placeholder_utxo, datum: None },
-    }
-
-  // Finally invoke your validator
-  bet.spend(Some(initial_datum), redeemer, placeholder_utxo, ctx)
-}

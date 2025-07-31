@@ -73,18 +73,20 @@ export default function BetDeploy() {
       // 2) build the datum
       const datum = makeBetDatum(
         deserializeAddress(oracle).pubKeyHash,
-        0n, // start wager (must be 0)
+        lovelace, // start wager (must be 0)
         deserializeAddress(player1).pubKeyHash,
-        " ", // no need to add player 2 at deploy time 
+        "00000000000000000000000000000000000000000000000000000000", // no need to add player 2 at deploy time 
         1n, // dummy deadline
-        false // not yet joined
+        0n, // not yet joined
+        //"00000000000000000000000000000000000000000000000000000000",
       );
+
+      console.log("datuuuum: ", datum);
 
       // 3) prepare assets + scrip
       // these are for the creation of the contract
-      const assets: Asset[] = [{ unit: 'lovelace', quantity: "2000000" }];
+      const assets: Asset[] = [{ unit: 'lovelace', quantity: "10000000" }];
       const { scriptAddr, scriptCbor } = getScript();
-      const datumHash = resolveDataHash(datum);
 
       // 4) build, sign and submit
       const txBuilder = getTxBuilder()
@@ -95,7 +97,7 @@ export default function BetDeploy() {
         )
         .txOutInlineDatumValue(datum)
         .selectUtxosFrom(p1utxos)
-        .changeAddress(p1addr)
+        .changeAddress(p1addr);
 
 
       await txBuilder.complete();
@@ -141,6 +143,19 @@ export default function BetDeploy() {
           value={player1}
           readOnly
           onChange={(e) => setPlayer1(e.target.value)}
+          required
+          className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="flex flex-col">
+        <label className="mb-1 font-medium text-gray-700">Wager (in Lovelace)</label>
+        <input
+          type="number"
+          min="1000000"
+          step="100000"
+          value={wager}
+          onChange={(e) => setWager(e.target.value)}
           required
           className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />

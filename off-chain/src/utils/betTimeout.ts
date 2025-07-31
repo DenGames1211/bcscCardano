@@ -11,6 +11,7 @@ import {
   Data,
   PlutusScript,
   option,
+  mConStr0,
 
 } from '@meshsdk/core';
 import { getScript, getAssetUtxo, getUtxoByTxHash, getBrowserWallet } from '@/utils/common';
@@ -38,7 +39,7 @@ export async function betTimeout({
   deadline,
   datum,
   txHash,
-}: BetTimeoutParams): Promise<{ unsignedTx: string | null}> {
+}: BetTimeoutParams): Promise<{ unsignedTx: string | null }> {
   try {
 
 
@@ -47,59 +48,64 @@ export async function betTimeout({
     const oraclePKH = deserializeAddress(oracleAddr).pubKeyHash;
     const lovelace = BigInt(wager);
     //const deadline = BigInt(Date.now() + FIVE_MINUTES_MS);
-    const datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
+    const datum = makeBetDatum(
+      oraclePKH,
+      lovelace,
+      p1PKH,
+      p2PKH,
+      deadline,
+      1n
+    );
 
     const { scriptCbor, scriptAddr } = getScript();
 
-    const redeemer = makeTimeoutRedeemer();
-
-    
-
-    const assetUtxo = await getAssetUtxo({
-        scriptAddress: scriptAddr,
-        asset: "lovelace",
-        datum: datum,
-        });
-    
-        if (!assetUtxo) {
-        throw new Error("No matching UTxO found with the given datum.");
-        }
-    
-        const plutusScript: PlutusScript = {
-        code: scriptCbor,
-        version: 'V3',
-        };
-    
-        const p1wallet = await getBrowserWallet();
-        const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
-        const utxo = await getUtxoByTxHash(txHash);
-        const p1utxos = await p1wallet.getUtxos();
+    const redeemer = mConStr0([3, ""]);
 
 
-        const unsignedTx = await txBuilder
-        .spendingPlutusScriptV3()
-        .txIn(
-          utxo.input.txHash,
-          utxo.input.outputIndex,
-          utxo.output.amount,
-          utxo.output.address
-        )
-        .txInDatumValue(datum)
-        .txInRedeemerValue(redeemer)
-        .spendingTxInReference(utxo.input.txHash, utxo.input.outputIndex) 
-        .txInScript(scriptCbor)
-        //.changeAddress(addr)
-        .selectUtxosFrom(p1utxos)
-        .requiredSignerHash(p1PKH)
-        .requiredSignerHash(p2PKH)
-        .complete();
-        
+    //await new Promise(res => setTimeout(res, 1 * 60 * 1000));
+    const joinUtxo = await getUtxoByTxHash(txHash);
 
-    return{unsignedTx: unsignedTx};
+    const p1wallet = await getBrowserWallet();
+    const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
+    //const utxo = await getUtxoByTxHash(txHash);
+    const p1utxos = await p1wallet.getUtxos();
+
+    const assets: Asset[] = [{ unit: "lovelace", quantity: wager }];
+
+
+    const unsignedTx = await txBuilder
+      .setNetwork("preview")
+      .spendingPlutusScriptV3()
+      .txIn(
+        joinUtxo.input.txHash,
+        joinUtxo.input.outputIndex,
+        //joinUtxo.output.amount,
+        //joinUtxo.output.address
+      )
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(redeemer)
+
+      .txInScript(scriptCbor)
+      //.changeAddress(addr)
+      .txInCollateral(
+        p1utxos[0].input.txHash,
+        p1utxos[0].input.outputIndex
+      )
+      .txOut(player1, assets)
+      .txOut(player2, assets)
+      .changeAddress(player1)
+      .selectUtxosFrom(p1utxos)
+      .requiredSignerHash(p1PKH)
+      .requiredSignerHash(p2PKH)
+
+      .complete();
+
+
+    return { unsignedTx: unsignedTx };
 
   } catch (err) {
     console.error('Error in betTimeout:', err);
-    return { unsignedTx: null};
+    return { unsignedTx: null };
   }
 
 }

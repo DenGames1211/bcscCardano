@@ -12,6 +12,7 @@ import {
   PlutusScript,
   BuilderData,
   Budget,
+  mConStr0,
 } from '@meshsdk/core';
 import { Data } from '@meshsdk/core';
 import { getScript, getBrowserWallet, getAssetUtxo, getUtxoByTxHash, getUtxoByTxHashWithRetry } from '@/utils/common';
@@ -33,7 +34,7 @@ interface BetWinParams {
 }
 
 export async function betWin({
-  
+
   oracleMnemonic,
   player1,
   player2,
@@ -58,8 +59,9 @@ export async function betWin({
     const p1PKH = deserializeAddress(player1).pubKeyHash;
     const p2PKH = deserializeAddress(player2).pubKeyHash;
     const oraclePKH = deserializeAddress(oracleAddr).pubKeyHash;
+    const oracleUtxos = await oracle.getUtxos();
     const winnerAddr = Math.random() < 0.5 ? player1 : player2;
-    console.log("vincitore: ", winnerAddr.toString() === player1? "Player 1" : "Player 2");
+    console.log("vincitore: ", winnerAddr.toString() === player1 ? "Player 1" : "Player 2");
     const winnerPKH = deserializeAddress(winnerAddr).pubKeyHash;
     const wagerTotal = (BigInt(wager) * 2n).toString();
     const lovelace = BigInt(wager);
@@ -69,83 +71,79 @@ export async function betWin({
     const p1wallet = await getBrowserWallet();
     const p1utxos = await p1wallet.getUtxos();
 
-    // 1. Get UTXOs at script address
-  
-    //const targetUtxo = scriptUtxos.find((utxo) => utxo.output.amount.find((a) => a.unit === 'lovelace' && BigInt(a.quantity) >= BigInt(wagerTotal)));
 
-    //if (!targetUtxo) throw new Error('No suitable UTxO at script address');
 
-    //const datum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
-    const assets: Asset[] = [{ unit: "lovelace", quantity: wager }];
-    const oracleUtxos = await oracle.getUtxos();
+    const assets: Asset[] = [{ unit: "lovelace", quantity: (BigInt(wager) * 2n).toString() }];
+
     const [oracleAd] = await oracle.getUsedAddresses();
     const [addr] = await oracle.getUsedAddresses();
     const { scriptCbor, scriptAddr } = getScript();
-    const hash  = resolvePaymentKeyHash(oracleAddr);
-    const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
+    //const hash = resolvePaymentKeyHash(oracleAddr);
+    //const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddr);
 
-    const redeemer = makeWinRedeemer(winnerPKH);
+    const redeemer = mConStr0([2, winnerPKH]);
 
     const exUnits: Budget = {
       mem: 5000000,
       steps: 7000000,
     };
 
-    
-    console.log("received datum: ", resolveDataHash(datum));
-    console.log("datum structure: ", datum);
-    await new Promise(res => setTimeout(res, 2 * 60 * 1000));
+    await new Promise(res => setTimeout(res, 1 * 60 * 1000));
+
+    // getting Join tx Utxos: 
     const utxo = await getUtxoByTxHash(joinTxHash);
     console.log("utxos ricevuti: ", utxo);
-    //const assetUtxo = await getAssetUtxo({
-    //scriptAddress: scriptAddr,
-    //asset: "lovelace",
-    //datum: datum
-    //});
 
-    //if (!assetUtxo) {
-    //throw new Error("No matching UTxO found with the given datum.");
-    //}
 
-    const plutusScript: PlutusScript = {
-      code: scriptCbor,
-      version: 'V3',
-    };
-  
-  
-  console.log("sended utxo: ", oracleUtxos);
-  console.log("utxo txHash: ", utxo.input.txHash);
-  console.log("utxo output index", utxo.input.outputIndex);
-  console.log("utxo amount", utxo.output.amount);
-  console.log("utxo out addr", utxo.output.address);
-  console.log("script: ", scriptCbor);
-  const newdatum = makeBetDatum(oraclePKH, lovelace, p1PKH, p2PKH, deadline, true);
-  console.log("oracle address: ", oracleAddr);
+    console.log("sended utxo: ", oracleUtxos);
+    console.log("utxo txHash: ", utxo.input.txHash);
+    console.log("utxo output index", utxo.input.outputIndex);
+    console.log("utxo amount", utxo.output.amount);
+    console.log("utxo out addr", utxo.output.address);
+    console.log("script: ", scriptCbor);
 
-  const collateralUtxos = (await oracle.getUtxos()).filter(
-    (utxo) => utxo.output.amount.length === 1 && utxo.output.amount[0].unit === "lovelace"
-  );
+    const newdatum = makeBetDatum(
+      oraclePKH,
+      lovelace,
+      p1PKH,
+      p2PKH,
+      deadline,
+      1n,
+      //winnerPKH,
+    );
+    console.log("oracle address: ", oracleAddr);
 
-  const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
 
-  const unsignedTx = await txBuilder
-  .spendingPlutusScriptV3()
-  .txIn(
-    utxo.input.txHash,
-    utxo.input.outputIndex,
-    utxo.output.amount,
-    utxo.output.address
-  )
-  .txInDatumValue(newdatum)
-  .txInRedeemerValue(redeemer)
-  .spendingTxInReference(utxo.input.txHash, utxo.input.outputIndex) 
-  .txInScript(scriptCbor)
-  .txOut(winnerAddr, assets) 
-  .changeAddress(player1)
-  .selectUtxosFrom(p1utxos)
-  .txInCollateral(utxo.input.txHash, utxo.input.outputIndex)
-  .requiredSignerHash(oraclePKH)
-  .complete();
+    const txBuilder = new MeshTxBuilder({ fetcher: provider, verbose: true });
+
+    const unsignedTx = await txBuilder
+      .setNetwork("preview")
+      .spendingPlutusScript("V3")
+      .txIn(
+        utxo.input.txHash,
+        utxo.input.outputIndex,
+        utxo.output.amount,
+        utxo.output.address
+      )
+
+      .txInInlineDatumPresent()
+      .txInRedeemerValue(redeemer)
+
+      .txInScript(scriptCbor)
+      // in case the tx fails, collateral are up to the oracle
+      .txInCollateral(
+        oracleUtxos[0].input.txHash,
+        oracleUtxos[0].input.outputIndex
+      )
+
+      .txOut(winnerAddr, assets)
+      .txOutInlineDatumValue(newdatum)
+      .changeAddress(oracleAddr)
+      // oracle pays fees
+      .selectUtxosFrom(oracleUtxos)
+      // oracle must be the signer
+      .requiredSignerHash(oraclePKH)
+      .complete();
 
 
     console.log("oracle key hash in betWin: ", oraclePKH);
@@ -153,11 +151,12 @@ export async function betWin({
     const txHash = await oracle.submitTx(signedTx);
 
     const winner = winnerAddr.toString();
-    console.log("vincitore: ", winner === player1? "Player 1" : "Player 2");
-    return { winner: winner , txHash: txHash};
+    let winner_str = (winner === player1 ? "Player 1" : "Player 2");
+    console.log("vincitore: ", winner_str);
+    return { winner: winner_str, txHash: txHash };
   } catch (err) {
     console.error('Error in betWin:', err);
-    return { winner: null, txHash: null};
+    return { winner: null, txHash: null };
   }
 }
 

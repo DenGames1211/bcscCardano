@@ -87,6 +87,8 @@ export default function AuctionWithdraw() {
         const datum = parseAuctionDatum(utxo.output.plutusData);
         if (datum.status !== 1n) continue;
         if (datum.highestBidder !== bidderPubKeyHash) continue;
+        if (datum.deadline < Date.now()) continue;
+
 
         filteredAuctions.push({
           object: datum.object,
@@ -197,10 +199,10 @@ export default function AuctionWithdraw() {
 
   return (
     <div className="max-w-md mx-auto p-4">
-      {!walletAddress && <p>Connect your wallet to see your outbid auctions.</p>}
+      {!walletAddress && <p>Connect your wallet to see your bids.</p>}
 
       {walletAddress && auctions.length === 0 && (
-        <p className="text-center text-gray-500 mt-6">No active outbid auctions found.</p>
+        <p className="text-center text-gray-500 mt-6">No active bids found.</p>
       )}
 
       <ul>
